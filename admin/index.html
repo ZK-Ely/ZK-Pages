@@ -16864,8 +16864,7 @@
 		
 <!-- ZK 代理诊断注入 开始 -->
 <style>
-#proxy-diag-btn{margin-left:12px;padding:6px 14px;background:#f6821f;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
-#proxy-diag-btn:disabled{background:#999;cursor:wait}
+#proxy-diag-btn:disabled{opacity:.6;cursor:wait}
 #proxy-diag-panel{position:fixed;top:80px;right:24px;width:430px;max-height:70vh;overflow:auto;background:#1e1e1e;color:#e0e0e0;border:1px solid #333;border-radius:10px;padding:16px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.7;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,.5)}
 #proxy-diag-panel .drow{display:flex;margin:3px 0}
 #proxy-diag-panel .dk{color:#888;min-width:88px;flex-shrink:0}
@@ -16881,14 +16880,13 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
   'use strict';
   function byId(id){return document.getElementById(id);}
   function 找注入点(){
-    var sec=byId('otherProxySection');
-    if(!sec) return null;
+    // 定位「Cloudflare CDN 访问设置」模块末尾的 btn-group（取消/保存 按钮组）
+    var saveBtn=byId('saveProxyBtn');
+    if(!saveBtn) return null;
+    var group=saveBtn.closest('.btn-group');
+    if(!group) return null;
     if(byId('proxy-diag-btn')) return null;           // 已注入
-    var protoSel=byId('proxyProtocol');
-    if(!protoSel) return null;
-    // 插到「代理协议」这个 form-group 之后
-    var fg=protoSel.closest('.form-group')||protoSel.parentElement;
-    return {sec:sec,fg:fg,protoSel:protoSel};
+    return {group:group,saveBtn:saveBtn};
   }
   function 当前协议(){
     var s=byId('proxyProtocol');
@@ -16974,10 +16972,11 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
     var btn=document.createElement('button');
     btn.id='proxy-diag-btn';
     btn.type='button';
+    btn.className='btn btn-primary';      // 仿照「保存」按钮样式
     btn.textContent='🔍 代理诊断';
-    btn.title='测试代理连通性与证书指纹匹配';
+    btn.title='测试代理连通性与证书指纹匹配（不改动任何配置）';
     btn.onclick=执行诊断;
-    t.fg.parentNode.insertBefore(btn,t.fg.nextSibling);
+    t.group.appendChild(btn);             // 插在 btn-group 内「保存」之后
     return true;
   }
 

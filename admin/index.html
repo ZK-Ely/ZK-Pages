@@ -2,6 +2,33 @@
 <html lang="zh-CN">
 
 <head>
+<!-- ZK 子路径适配 开始 -->
+<script>
+(function(){
+  'use strict';
+  /* 从当前 URL 推导站点 BASE：
+     https://zk-ely.github.io/ZK-Pages/admin/xxx → BASE = '/ZK-Pages'
+     https://zk-ely.github.io/ZK-Pages/         → BASE = '/ZK-Pages'
+     同域根目录部署时 → BASE = ''  */
+  var segs = location.pathname.split('/').filter(Boolean);
+  // 最后一段若是 admin/login 等页面目录则去掉
+  var pageDirs = ['admin','login','noADMIN','noKV'];
+  while (segs.length && pageDirs.indexOf(segs[segs.length-1]) !== -1) segs.pop();
+  window.ZK_BASE = segs.length ? '/' + segs.join('/') : '';
+  // 兼容旧代码：全局 fetch 包装，自动给以 /admin /version /cdn-cgi 开头的路径加 BASE
+  var _origFetch = window.fetch.bind(window);
+  window.fetch = function(input, init){
+    try {
+      if (typeof input === 'string' && input.charAt(0) === '/' && !input.startsWith('//')) {
+        input = window.ZK_BASE + input;
+      }
+    } catch(e){}
+    return _origFetch(input, init);
+  };
+})();
+</script>
+<!-- ZK 子路径适配 结束 -->
+
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width,initial-scale=1">
 	<meta name="robots" content="noindex, nofollow">
@@ -16834,7 +16861,147 @@
 					return error.message || "操作失败";
 				}
 			</script>
-		</body>
+		
+<!-- ZK 代理诊断注入 开始 -->
+<style>
+#proxy-diag-btn{margin-left:12px;padding:6px 14px;background:#f6821f;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+#proxy-diag-btn:disabled{background:#999;cursor:wait}
+#proxy-diag-panel{position:fixed;top:80px;right:24px;width:430px;max-height:70vh;overflow:auto;background:#1e1e1e;color:#e0e0e0;border:1px solid #333;border-radius:10px;padding:16px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.7;z-index:99999;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+#proxy-diag-panel .drow{display:flex;margin:3px 0}
+#proxy-diag-panel .dk{color:#888;min-width:88px;flex-shrink:0}
+#proxy-diag-panel .dv{word-break:break-all}
+#proxy-diag-panel .ok{color:#4ade80;font-weight:700}
+#proxy-diag-panel .bad{color:#f87171;font-weight:700}
+#proxy-diag-panel .mut{color:#888}
+#proxy-diag-panel .errbox{margin-top:10px;padding:8px;background:#3a1a1a;border-radius:6px;color:#f87171}
+html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
+</style>
+<script>
+(function(){
+  'use strict';
+  function byId(id){return document.getElementById(id);}
+  function 找注入点(){
+    var sec=byId('otherProxySection');
+    if(!sec) return null;
+    if(byId('proxy-diag-btn')) return null;           // 已注入
+    var protoSel=byId('proxyProtocol');
+    if(!protoSel) return null;
+    // 插到「代理协议」这个 form-group 之后
+    var fg=protoSel.closest('.form-group')||protoSel.parentElement;
+    return {sec:sec,fg:fg,protoSel:protoSel};
+  }
+  function 当前协议(){
+    var s=byId('proxyProtocol');
+    return s? s.value.toLowerCase() : 'https';
+  }
+  function 当前地址(){
+    var proto=当前协议();
+    // 各协议地址输入框 id: socks5Addr/httpAddr/httpsAddr/turnAddr/sstpAddr
+    var input=byId(proto+'Addr')||byId('httpsAddr')||byId('httpAddr');
+    if(input && input.value && input.value.trim()) return input.value.trim();
+    // 兜底：扫所有输入框找代理样式
+    var inputs=document.querySelectorAll('#otherProxySection input, #otherProxySection textarea');
+    for(var i=0;i<inputs.length;i++){
+      var v=(inputs[i].value||'').trim();
+      if(/^(socks5|https?):\/\//i.test(v)) return v;
+      if(/^[^@\s]+@[^:\s]+:\d+$/.test(v)) return proto+'://'+v;
+    }
+    return '';
+  }
+  function 行(k,v,c){
+    if(v===undefined||v===null||v==='') return '';
+    return '<div class="drow"><span class="dk">'+k+'</span><span class="dv"'+(c?' style="color:'+c+'"':'')+'>'+v+'</span></div>';
+  }
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
+
+  function 显示(d){
+    var old=byId('proxy-diag-panel');
+    if(old) old.remove();
+    var p=document.createElement('div');
+    p.id='proxy-diag-panel';
+    var ok=d.success===true;
+    var pm=d.cert&&d.cert.matched;
+    var h='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+      +'<strong style="font-size:14px;color:'+(ok?'#4ade80':'#f87171')+'">'+(ok?'✅ 诊断通过':'❌ 诊断失败')+'</strong>'
+      +'<span style="cursor:pointer;color:#888;padding:0 6px" id="proxy-diag-close">✕</span></div>';
+    h+=行('代理',esc(d.proxy||''));
+    h+=行('出口 IP',esc(d.ip||''),pm===false?'#f87171':undefined);
+    h+=行('地区',esc(d.loc||''));
+    h+=行('TLS',esc(d.tls||''));
+    h+=行('Cipher',d.cipher?'<span class="mut">'+esc(d.cipher)+'</span>':'');
+    h+=行('耗时',d.responseTime!=null?d.responseTime+' ms':null);
+    if(d.cert){
+      h+='<div style="margin-top:10px;padding-top:10px;border-top:1px solid #333">';
+      h+=行('证书指纹', d.cert.pin
+        ? '<span class="'+(pm?'ok':'bad')+'">'+esc(d.cert.pin.slice(0,20))+'…</span>'
+        : '<span class="bad">'+esc(d.cert.error||'未获取')+'</span>');
+      if(pm===true)      h+=行('指纹匹配','<span class="ok">✓ 匹配（无中间人）</span>');
+      else if(pm===false)h+=行('指纹匹配','<span class="bad">✗ 不匹配（可能被劫持）</span>');
+      if(d.pinExpected)  h+=行('期望指纹','<span class="mut">'+esc(String(d.pinExpected).slice(0,20))+'…</span>');
+      h+='</div>';
+    }
+    if(d.error) h+='<div class="errbox">'+esc(d.error)+'</div>';
+    h+='<div style="margin-top:12px"><button id="proxy-diag-copy" style="padding:4px 10px;background:#333;color:#ccc;border:none;border-radius:4px;cursor:pointer">复制原始 JSON</button></div>';
+    p.innerHTML=h;
+    document.body.appendChild(p);
+    byId('proxy-diag-close').onclick=function(){p.remove();};
+    byId('proxy-diag-copy').onclick=function(){
+      var t=this;
+      navigator.clipboard.writeText(JSON.stringify(d,null,2)).then(function(){t.textContent='已复制 ✓';setTimeout(function(){t.textContent='复制原始 JSON';},1500);});
+    };
+  }
+
+  function 执行诊断(){
+    var btn=byId('proxy-diag-btn');
+    var old=btn.textContent;
+    btn.disabled=true;btn.textContent='⏳ 诊断中…';
+    var 代理值=当前地址();
+    if(!代理值){显示({success:false,error:'未找到代理地址，请先在下方填写'});恢复();return;}
+    var 协议=当前协议(),参数=代理值;
+    var m=代理值.match(/^(socks5|https?|turn|sstp):\/\/(.+)$/i);
+    if(m){协议=m[1].toLowerCase();参数=m[2];}
+    else if(!/^https?:\/\//i.test(代理值)){参数=协议+'://'+代理值;}
+    fetch('/admin/check?'+协议+'='+encodeURIComponent(参数),{credentials:'include'})
+      .then(function(r){return r.json();})
+      .then(function(d){显示(d);恢复();})
+      .catch(function(e){显示({success:false,error:e.message});恢复();});
+    function 恢复(){btn.disabled=false;btn.textContent='🔍 代理诊断';}
+  }
+
+  function 注入(){
+    var t=找注入点();
+    if(!t) return false;
+    var btn=document.createElement('button');
+    btn.id='proxy-diag-btn';
+    btn.type='button';
+    btn.textContent='🔍 代理诊断';
+    btn.title='测试代理连通性与证书指纹匹配';
+    btn.onclick=执行诊断;
+    t.fg.parentNode.insertBefore(btn,t.fg.nextSibling);
+    return true;
+  }
+
+  // 等 DOM 就绪后注入，SPA 场景下多重试
+  function boot(){
+    var tries=0;
+    var timer=setInterval(function(){
+      tries++;
+      if(注入()||tries>60) clearInterval(timer);
+    },250);
+    if(document.body){
+      new MutationObserver(function(){注入();}).observe(document.body,{childList:true,subtree:true});
+    } else {
+      document.addEventListener('DOMContentLoaded',function(){
+        new MutationObserver(function(){注入();}).observe(document.body,{childList:true,subtree:true});
+      });
+    }
+  }
+  boot();
+})();
+</script>
+<!-- ZK 代理诊断注入 结束 -->
+
+</body>
 
 		</html>
 

@@ -2,6 +2,33 @@
 <html lang="zh-CN">
 
 <head>
+<!-- ZK 子路径适配 开始 -->
+<script>
+(function(){
+  'use strict';
+  /* 从当前 URL 推导站点 BASE：
+     https://zk-ely.github.io/ZK-Pages/admin/xxx → BASE = '/ZK-Pages'
+     https://zk-ely.github.io/ZK-Pages/         → BASE = '/ZK-Pages'
+     同域根目录部署时 → BASE = ''  */
+  var segs = location.pathname.split('/').filter(Boolean);
+  // 最后一段若是 admin/login 等页面目录则去掉
+  var pageDirs = ['admin','login','noADMIN','noKV'];
+  while (segs.length && pageDirs.indexOf(segs[segs.length-1]) !== -1) segs.pop();
+  window.ZK_BASE = segs.length ? '/' + segs.join('/') : '';
+  // 兼容旧代码：全局 fetch 包装，自动给以 /admin /version /cdn-cgi 开头的路径加 BASE
+  var _origFetch = window.fetch.bind(window);
+  window.fetch = function(input, init){
+    try {
+      if (typeof input === 'string' && input.charAt(0) === '/' && !input.startsWith('//')) {
+        input = window.ZK_BASE + input;
+      }
+    } catch(e){}
+    return _origFetch(input, init);
+  };
+})();
+</script>
+<!-- ZK 子路径适配 结束 -->
+
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width,initial-scale=1">
 	<meta name="robots" content="noindex, nofollow">

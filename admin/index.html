@@ -16961,9 +16961,14 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
     function 恢复(){btn.disabled=false;btn.textContent='🔍 代理诊断';}
   }
 
-  // 静态按钮的事件绑定（按钮在 HTML 里写死，函数在此 IIFE 内，须在此处绑定）
-  var __diagBtn = byId('proxy-diag-btn');
-  if (__diagBtn) __diagBtn.onclick = 执行诊断;
+  // 事件委托：按钮无论何时被 DOM 重建，点击都能命中
+  document.addEventListener('click', function (ev) {
+    var el = ev.target;
+    while (el && el !== document.body) {
+      if (el.id === 'proxy-diag-btn') { ev.preventDefault(); 执行诊断(); return; }
+      el = el.parentElement;
+    }
+  }, true);
 
 })();
 </script>

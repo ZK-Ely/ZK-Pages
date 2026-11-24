@@ -11489,6 +11489,10 @@
 							title="了解 ProxyIP 的相关信息">
 							💡 为什么需要反代？PROXYIP又是什么？
 						</button>
+						<button type="button" class="btn btn-proxyip-help" id="proxy-diag-btn"
+							title="测试代理连通性与证书指纹匹配（不改动任何配置）">
+							🔍 代理诊断
+						</button>
 						<button type="button" class="btn btn-ech-help btn-path-template-config"
 							id="pathTemplateConfigBtn" onclick="showPathTemplateConfigModal()"
 							style="display: none; padding: 10px 16px;" title="配置路径模板">
@@ -16879,16 +16883,6 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
 (function(){
   'use strict';
   function byId(id){return document.getElementById(id);}
-  function 找注入点(){
-    // 定位 CDN 模块 footer 里的「💡 为什么需要反代」按钮，诊断按钮插在它后面
-    var btns = document.querySelectorAll('.module-footer .btn');
-    for (var i = 0; i < btns.length; i++) {
-      if (btns[i].textContent.indexOf('为什么需要反代') !== -1) {
-        return {anchor: btns[i]};
-      }
-    }
-    return null;
-  }
   function 当前协议(){
     var s=byId('proxyProtocol');
     return s? s.value.toLowerCase() : 'https';
@@ -16967,36 +16961,6 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
     function 恢复(){btn.disabled=false;btn.textContent='🔍 代理诊断';}
   }
 
-  function 注入(){
-    var t=找注入点();
-    if(!t) return false;
-    var btn=document.createElement('button');
-    btn.id='proxy-diag-btn';
-    btn.type='button';
-    btn.className='btn btn-proxyip-help';   // 与「💡 为什么需要反代」同样式
-    btn.textContent='🔍 代理诊断';
-    btn.title='测试代理连通性与证书指纹匹配（不改动任何配置）';
-    btn.onclick=执行诊断;
-    t.anchor.parentNode.insertBefore(btn, t.anchor.nextSibling);  // 紧跟其后
-    return true;
-  }
-
-  // 等 DOM 就绪后注入，SPA 场景下多重试
-  function boot(){
-    var tries=0;
-    var timer=setInterval(function(){
-      tries++;
-      if(注入()||tries>60) clearInterval(timer);
-    },250);
-    if(document.body){
-      new MutationObserver(function(){注入();}).observe(document.body,{childList:true,subtree:true});
-    } else {
-      document.addEventListener('DOMContentLoaded',function(){
-        new MutationObserver(function(){注入();}).observe(document.body,{childList:true,subtree:true});
-      });
-    }
-  }
-  boot();
 })();
 </script>
 <!-- ZK 代理诊断注入 结束 -->

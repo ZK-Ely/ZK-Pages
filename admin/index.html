@@ -16880,13 +16880,14 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
   'use strict';
   function byId(id){return document.getElementById(id);}
   function 找注入点(){
-    // 定位「Cloudflare CDN 访问设置」模块末尾的 btn-group（取消/保存 按钮组）
-    var saveBtn=byId('saveProxyBtn');
-    if(!saveBtn) return null;
-    var group=saveBtn.closest('.btn-group');
-    if(!group) return null;
-    if(byId('proxy-diag-btn')) return null;           // 已注入
-    return {group:group,saveBtn:saveBtn};
+    // 定位 CDN 模块 footer 里的「💡 为什么需要反代」按钮，诊断按钮插在它后面
+    var btns = document.querySelectorAll('.module-footer .btn');
+    for (var i = 0; i < btns.length; i++) {
+      if (btns[i].textContent.indexOf('为什么需要反代') !== -1) {
+        return {anchor: btns[i]};
+      }
+    }
+    return null;
   }
   function 当前协议(){
     var s=byId('proxyProtocol');
@@ -16972,11 +16973,11 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
     var btn=document.createElement('button');
     btn.id='proxy-diag-btn';
     btn.type='button';
-    btn.className='btn btn-primary';      // 仿照「保存」按钮样式
+    btn.className='btn btn-proxyip-help';   // 与「💡 为什么需要反代」同样式
     btn.textContent='🔍 代理诊断';
     btn.title='测试代理连通性与证书指纹匹配（不改动任何配置）';
     btn.onclick=执行诊断;
-    t.group.appendChild(btn);             // 插在 btn-group 内「保存」之后
+    t.anchor.parentNode.insertBefore(btn, t.anchor.nextSibling);  // 紧跟其后
     return true;
   }
 

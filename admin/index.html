@@ -11567,7 +11567,7 @@
 						<label for="subAPI">订阅转换后端</label>
 						<div class="readonly-wrapper" onclick="openSubAPIModal()">
 							<input type="text" id="subAPI" title="订阅转换后端" readonly
-								placeholder="https://SUBAPI.cmliussss.net" class="subapi-input">
+								placeholder="未配置（点击设置）" class="subapi-input">
 						</div>
 					</div>
 
@@ -11983,6 +11983,14 @@
 			<div class="form-group subapi-form-group" id="customSubAPIInputGroup" style="display: none;">
 				<label>自定义后端地址</label>
 				<input type="text" id="testSubAPIInput" placeholder="输入订阅转换后端地址">
+			</div>
+			<div class="form-group subapi-form-group">
+				<label>访问密钥（可选）</label>
+				<input type="password" id="subAPIKeyInput" placeholder="后端若启用了 AUTH_KV 密钥，在此填写"
+					autocomplete="off">
+				<div style="margin-top:6px;font-size:11px;opacity:.65;line-height:1.5;">
+					通过 <code>Authorization: Bearer</code> 头传递，不写入 URL，避免暴露在日志中。
+				</div>
 			</div>
 			<div id="subAPIStatus" class="subapi-status"></div>
 			<div class="subapi-buttons">
@@ -25800,6 +25808,12 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 		}
 
 		function openSubAPIModal() {
+			// 回填已保存的后端密钥
+			try {
+				const keyEl = document.getElementById('subAPIKeyInput');
+				if (keyEl) keyEl.value = (currentConfig.订阅转换配置 && currentConfig.订阅转换配置.SUBAPI_KEY) || '';
+			} catch (e) { console.warn('SUBAPI_KEY 回填失败:', e); }
+
 			const currentValue = document.getElementById('subAPI').value;
 			document.getElementById('subAPIStatus').style.display = 'none';
 			document.getElementById('subAPIStatus').textContent = '';
@@ -25819,68 +25833,13 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 		}
 
 		async function loadSubAPIList(currentValue) {
+			// 不再从任何远程地址拉取预置后端列表（避免第三方依赖与隐私泄露）
+			// 只提供「自定义」一项，由用户填写自己的后端
 			const selectEl = document.getElementById('subAPISelect');
-			selectEl.innerHTML = '<option value="">-- 加载中，请稍候 --</option>';
-
-			try {
-				const jsonText = await fetchWithAutoMirror(
-					'https://raw.githubusercontent.com/cmliu/cmliu/main/SUBAPI.json',
-					'SUBAPI 列表'
-				);
-
-				const apiList = JSON.parse(jsonText);
-
-				// 清空选项
-				selectEl.innerHTML = '';
-
-				// 添加 API 列表的选项
-				apiList.forEach(item => {
-					const option = document.createElement('option');
-					option.value = item.value;
-					option.textContent = `${item.label}[${item.value}]`;
-					selectEl.appendChild(option);
-				});
-
-				// 添加自定义选项
-				const customOption = document.createElement('option');
-				customOption.value = 'custom';
-				customOption.textContent = '🔧 自定义';
-				selectEl.appendChild(customOption);
-
-				// 尝试匹配当前值（大小写不敏感比较）
-				if (currentValue && currentValue.trim()) {
-					const currentValueLower = currentValue.trim().toLowerCase();
-					const matchedOption = Array.from(selectEl.options).find(
-						opt => opt.value.toLowerCase() === currentValueLower
-					);
-					if (matchedOption) {
-						// 找到了匹配的选项
-						selectEl.value = matchedOption.value;
-						document.getElementById('customSubAPIInputGroup').style.display = 'none';
-						document.getElementById('testSubAPIInput').value = '';
-					} else {
-						// 没有找到匹配的选项，说明是自定义的
-						selectEl.value = 'custom';
-						document.getElementById('testSubAPIInput').value = currentValue.trim();
-						document.getElementById('customSubAPIInputGroup').style.display = 'block';
-					}
-				} else {
-					// 没有当前值，显示第一个选项
-					selectEl.value = '';
-					document.getElementById('customSubAPIInputGroup').style.display = 'none';
-					document.getElementById('testSubAPIInput').value = '';
-				}
-			} catch (error) {
-				console.error('加载 SUBAPI 列表失败:', error);
-				selectEl.innerHTML = '<option value="custom">🔧 自定义</option>';
-				selectEl.value = 'custom';
-				document.getElementById('customSubAPIInputGroup').style.display = 'block';
-				if (currentValue && currentValue.trim()) {
-					document.getElementById('testSubAPIInput').value = currentValue.trim();
-				} else {
-					document.getElementById('testSubAPIInput').value = '';
-				}
-			}
+			selectEl.innerHTML = '<option value="custom">🔧 自定义</option>';
+			selectEl.value = 'custom';
+			document.getElementById('customSubAPIInputGroup').style.display = 'block';
+			document.getElementById('testSubAPIInput').value = (currentValue && currentValue.trim()) || '';
 		}
 
 		function handleSubAPISelectChange() {
@@ -26462,6 +26421,12 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			if (!validURL) return;
 
 			document.getElementById('subAPI').value = validURL;
+			// 保存后端访问密钥到 currentConfig（随保存写入 KV）
+			try {
+				if (!currentConfig.订阅转换配置) currentConfig.订阅转换配置 = {};
+				const keyEl = document.getElementById('subAPIKeyInput');
+				currentConfig.订阅转换配置.SUBAPI_KEY = keyEl ? keyEl.value.trim() : '';
+			} catch (e) { console.warn('SUBAPI_KEY 收集失败:', e); }
 			markModified('convert');
 			closeSubAPIModal();
 		}

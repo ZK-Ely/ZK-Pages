@@ -22326,10 +22326,16 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			const hasSORT = currentConfig.订阅转换配置?.SORT !== undefined;
 			const hasEXPAND = currentConfig.订阅转换配置?.EXPAND !== undefined;
 			currentConfig.订阅转换配置 = {
+				...(currentConfig.订阅转换配置 || {}),
 				SUBAPI: document.getElementById('subAPI').value,
 				SUBCONFIG: document.getElementById('subConfig').value,
 				SUBEMOJI: document.getElementById('emoji').checked
 			};
+			// 兜底：若密钥输入框有值但 currentConfig 里没有，从 UI 读取
+			if (!currentConfig.订阅转换配置.SUBAPI_KEY) {
+				const keyEl = document.getElementById('subAPIKeyInput');
+				currentConfig.订阅转换配置.SUBAPI_KEY = keyEl ? keyEl.value.trim() : '';
+			}
 			if (hasSubList) {
 				currentConfig.订阅转换配置.SUBLIST = document.getElementById('subList').checked;
 			}

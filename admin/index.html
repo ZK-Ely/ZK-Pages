@@ -11211,31 +11211,6 @@
 						</div>
 					</div>
 
-					<!-- 证书校验设置 -->
-					<div class="form-group" style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(128,128,128,.25);">
-						<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-							<label style="margin:0;font-weight:600;">🔐 证书校验（SPKI 固定）</label>
-							<div class="checkbox-group" style="margin:0;">
-								<input type="checkbox" id="pinVerifyEnabled"
-									title="启用后强制校验代理证书公钥指纹，防止中间人解密"
-									onchange="markModified('proxy')">
-								<label for="pinVerifyEnabled" class="checkbox-label"
-									title="启用后强制校验代理证书公钥指纹，防止中间人解密">启用校验</label>
-							</div>
-						</div>
-						<div class="input-wrapper">
-							<input type="text" id="pinFingerprint"
-								title="证书公钥指纹（SPKI SHA-256，Base64）"
-								placeholder="留空则使用内置默认值"
-								onchange="markModified('proxy')" oninput="markModified('proxy')"
-								style="font-family:ui-monospace,Consolas,monospace;font-size:12px;">
-						</div>
-						<div style="margin-top:8px;font-size:11px;opacity:.65;line-height:1.6;">
-							服务器换证书后需同步更新此指纹，否则连接会被拒绝。<br>
-							获取命令：<code style="background:rgba(128,128,128,.15);padding:1px 5px;border-radius:3px;">openssl x509 -in server.crt -pubkey -noout | openssl pkey -pubin -outform DER | openssl dgst -sha256 -binary | base64</code>
-						</div>
-					</div>
-
 					<div class="module-footer">
 						<div class="btn-group">
 							<button type="button" class="btn btn-secondary" onclick="cancelEdit('config')" disabled
@@ -11506,6 +11481,31 @@
 										title="启用全局代理: 将非CFCDN站点的流量也走SSTP代理">启用全局代理</label>
 								</div>
 							</div>
+						</div>
+					</div>
+
+					<!-- 证书校验设置 -->
+					<div class="form-group" style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(128,128,128,.25);">
+						<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+							<label style="margin:0;font-weight:600;">🔐 证书校验（SPKI 固定）</label>
+							<div class="checkbox-group" style="margin:0;">
+								<input type="checkbox" id="pinVerifyEnabled"
+									title="启用后强制校验代理证书公钥指纹，防止中间人解密"
+									onchange="markModified('proxy')">
+								<label for="pinVerifyEnabled" class="checkbox-label"
+									title="启用后强制校验代理证书公钥指纹，防止中间人解密">启用校验</label>
+							</div>
+						</div>
+						<div class="input-wrapper">
+							<input type="text" id="pinFingerprint"
+								title="证书公钥指纹（SPKI SHA-256，Base64）"
+								placeholder="留空则使用内置默认值"
+								onchange="markModified('proxy')" oninput="markModified('proxy')"
+								style="font-family:ui-monospace,Consolas,monospace;font-size:12px;">
+						</div>
+						<div style="margin-top:8px;font-size:11px;opacity:.65;line-height:1.6;">
+							服务器换证书后需同步更新此指纹，否则连接会被拒绝。<br>
+							获取命令：<code style="background:rgba(128,128,128,.15);padding:1px 5px;border-radius:3px;">openssl x509 -in server.crt -pubkey -noout | openssl pkey -pubin -outform DER | openssl dgst -sha256 -binary | base64</code>
 						</div>
 					</div>
 

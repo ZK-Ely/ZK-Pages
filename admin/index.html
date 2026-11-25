@@ -20180,7 +20180,7 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 				const pinCfg = currentConfig.反代 && currentConfig.反代.证书校验;
 				const pinEnabledEl = document.getElementById('pinVerifyEnabled');
 				const pinInputEl = document.getElementById('pinFingerprint');
-				if (pinEnabledEl) pinEnabledEl.checked = pinCfg ? pinCfg.启用 !== false : true;
+				if (pinEnabledEl) pinEnabledEl.checked = (pinCfg && pinCfg.启用 !== undefined) ? pinCfg.启用 !== false : true;
 				if (pinInputEl) pinInputEl.value = (pinCfg && pinCfg.指纹) || '';
 			} catch (e) { console.warn('证书校验回填失败:', e); }
 

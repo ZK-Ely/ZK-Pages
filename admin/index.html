@@ -16867,19 +16867,17 @@
 			
 
 // ═══════ ZK 代理诊断（寄生在主脚本内，不可被清除）═══════
-(function(){
-  'use strict';
-  var PIN = 'tBywo9y1c9TFXxrYN40Pa6R1dl378nzBze9GGaOd3UU=';
-  var PANEL = null;
+var ZK_DIAG_PIN = 'tBywo9y1c9TFXxrYN40Pa6R1dl378nzBze9GGaOd3UU=';
+  var ZK_ZK_PANEL = null;
 
-  function $(id){ return document.getElementById(id); }
+  function ZKdiagZKdiagZKdiag$(id){ return document.getElementById(id); }
 
-  function 确保按钮(){
-    var saveBtn = $('saveProxyBtn');
+  function ZK确保按钮(){
+    var saveBtn = ZKdiagZKdiag$('saveProxyBtn');
     if (!saveBtn) return false;
     var group = saveBtn.closest('.btn-group');
     if (!group) return false;
-    var btn = $('proxy-diag-btn');
+    var btn = ZKdiagZKdiag$('proxy-diag-btn');
     if (!btn || btn.closest('.btn-group') !== group) {
       if (btn) btn.remove();
       btn = document.createElement('button');
@@ -16893,14 +16891,14 @@
     return true;
   }
 
-  function 当前协议(){
-    var s = $('proxyProtocol');
+  function ZK当前协议(){
+    var s = ZKdiagZKdiag$('proxyProtocol');
     return s ? s.value.toLowerCase() : 'https';
   }
 
-  function 当前地址(){
+  function ZK当前地址(){
     var proto = 当前协议();
-    var input = $(proto + 'Addr') || $('httpsAddr') || $('httpAddr');
+    var input = ZKdiagZKdiag$(proto + 'Addr') || ZKdiagZKdiag$('httpsAddr') || ZKdiagZKdiag$('httpAddr');
     if (input && input.value && input.value.trim()) return input.value.trim();
     var inputs = document.querySelectorAll('input,textarea');
     for (var i = 0; i < inputs.length; i++) {
@@ -16911,22 +16909,22 @@
     return '';
   }
 
-  function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function ZKdiagEsc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
 
-  function 行(k, v, cls){
+  function ZKdiag行(k, v, cls){
     if (v === undefined || v === null || v === '') return '';
     return '<div class="drow"><span class="dk">' + k + '</span><span class="dv ' + (cls || '') + '">' + v + '</span></div>';
   }
 
-  function 移除面板(){
-    if (PANEL && PANEL.parentNode) PANEL.parentNode.removeChild(PANEL);
-    PANEL = null;
+  function ZK移除面板(){
+    if (ZK_PANEL && ZK_PANEL.parentNode) PANEL.parentNode.removeChild(PANEL);
+    ZK_PANEL = null;
   }
 
-  function 显示(d){
+  function ZK显示(d){
     移除面板();
-    PANEL = document.createElement('div');
-    PANEL.id = 'proxy-diag-panel';
+    ZK_PANEL = document.createElement('div');
+    ZK_PANEL.id = 'proxy-diag-panel';
     var ok = d.success === true;
     var pm = d.cert && d.cert.matched;
     var h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
@@ -16946,27 +16944,27 @@
         : '<span class="bad">' + esc(d.cert.error || '未获取') + '</span>');
       if (pm === true)       h += 行('指纹匹配', '<span class="ok">✓ 匹配（无中间人）</span>');
       else if (pm === false) h += 行('指纹匹配', '<span class="bad">✗ 不匹配（可能被劫持）</span>');
-      h += 行('期望指纹', '<span class="mut">' + esc(PIN.slice(0, 20)) + '…</span>');
+      h += 行('期望指纹', '<span class="mut">' + esc(ZK_DIAG_PIN.slice(0, 20)) + '…</span>');
       h += '</div>';
     }
     if (d.error) h += '<div class="errbox">' + esc(d.error) + '</div>';
     h += '<div style="margin-top:12px"><button id="proxy-diag-copy" style="padding:4px 10px;background:#333;color:#ccc;border:none;border-radius:4px;cursor:pointer">复制原始 JSON</button></div>';
-    PANEL.innerHTML = h;
-    document.body.appendChild(PANEL);
-    $('proxy-diag-close').onclick = function(){ 移除面板(); };
-    $('proxy-diag-copy').onclick = function(){
+    ZK_PANEL.innerHTML = h;
+    document.body.appendChild(ZK_PANEL);
+    ZKdiagZKdiag$('proxy-diag-close').onclick = function(){ 移除面板(); };
+    ZKdiagZKdiag$('proxy-diag-copy').onclick = function(){
       var t = this;
       navigator.clipboard.writeText(JSON.stringify(d, null, 2))
         .then(function(){ t.textContent = '已复制 ✓'; setTimeout(function(){ t.textContent = '复制原始 JSON'; }, 1500); });
     };
   }
 
-  var busy = false;
-  function 执行诊断(){
-    if (busy) return;
-    var btn = $('proxy-diag-btn');
+  var ZK_diagBusy = false;
+  function ZK执行诊断(){
+    if (ZK_diagBusy) return;
+    var btn = ZKdiagZKdiag$('proxy-diag-btn');
     if (btn) { btn.disabled = true; btn.textContent = '⏳ 诊断中…'; }
-    busy = true;
+    ZK_diagBusy = true;
     var 代理值 = 当前地址();
     if (!代理值) {
       显示({ success: false, error: '未找到代理地址，请先在下方填写' });
@@ -16979,9 +16977,9 @@
       .then(function(r){ return r.json(); })
       .then(function(d){ 显示(d); 完成(); })
       .catch(function(e){ 显示({ success: false, error: e.message }); 完成(); });
-    function 完成(){
-      busy = false;
-      var b = $('proxy-diag-btn');
+    function ZKdiag完成(){
+      ZK_diagBusy = false;
+      var b = ZKdiagZKdiag$('proxy-diag-btn');
       if (b) { b.disabled = false; b.textContent = '🔍 代理诊断'; }
     }
   }
@@ -16996,9 +16994,8 @@
   }, true);
 
   // 自愈循环
-  setInterval(确保按钮, 2000);
-  确保按钮();
-})();
+setInterval(确保按钮, 2000);
+确保按钮();
 // ═══════ ZK 代理诊断结束 ═══════
 </script>
 		

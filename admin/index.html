@@ -16864,31 +16864,11 @@
 					if (error.name === "AbortError") return "请求超时或已停止";
 					return error.message || "操作失败";
 				}
-			</script>
-		
-<!-- ZK 代理诊断注入 开始 -->
-<style>
-#proxy-diag-btn{opacity:.95}
-#proxy-diag-btn:disabled{opacity:.5;cursor:wait}
-#proxy-diag-panel{position:fixed;top:80px;right:24px;width:430px;max-height:70vh;overflow:auto;background:#1e1e1e;color:#e0e0e0;border:1px solid #333;border-radius:10px;padding:16px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.7;z-index:2147483647;box-shadow:0 8px 32px rgba(0,0,0,.5)}
-#proxy-diag-panel .drow{display:flex;margin:3px 0}
-#proxy-diag-panel .dk{color:#888;min-width:88px;flex-shrink:0}
-#proxy-diag-panel .dv{word-break:break-all}
-#proxy-diag-panel .ok{color:#4ade80;font-weight:700}
-#proxy-diag-panel .bad{color:#f87171;font-weight:700}
-#proxy-diag-panel .mut{color:#888}
-#proxy-diag-panel .errbox{margin-top:10px;padding:8px;background:#3a1a1a;border-radius:6px;color:#f87171}
-html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
-</style>
-<script>
-/* 代理诊断：常驻委托 + 每 2 秒自愈按钮 + 面板
-   页面主脚本会重建模块 DOM 并移除外来节点，
-   所以：监听器挂 window（幂等），按钮周期性确保存在 */
+			
+
+// ═══════ ZK 代理诊断（寄生在主脚本内，不可被清除）═══════
 (function(){
   'use strict';
-  if (window.__zkDiagLoaded) return;      // 幂等：防重复注册
-  window.__zkDiagLoaded = true;
-
   var PIN = 'tBywo9y1c9TFXxrYN40Pa6R1dl378nzBze9GGaOd3UU=';
   var PANEL = null;
 
@@ -16900,7 +16880,6 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
     var group = saveBtn.closest('.btn-group');
     if (!group) return false;
     var btn = $('proxy-diag-btn');
-    // 不存在或被移出按钮组（页面重建）则重建
     if (!btn || btn.closest('.btn-group') !== group) {
       if (btn) btn.remove();
       btn = document.createElement('button');
@@ -16926,6 +16905,7 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
     var inputs = document.querySelectorAll('input,textarea');
     for (var i = 0; i < inputs.length; i++) {
       var v = (inputs[i].value || '').trim();
+      if (/^(socks5|https?):\/\/i/i.test(v)) continue;
       if (/^(socks5|https?):\/\//i.test(v)) return v;
     }
     return '';
@@ -16936,6 +16916,11 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
   function 行(k, v, cls){
     if (v === undefined || v === null || v === '') return '';
     return '<div class="drow"><span class="dk">' + k + '</span><span class="dv ' + (cls || '') + '">' + v + '</span></div>';
+  }
+
+  function 移除面板(){
+    if (PANEL && PANEL.parentNode) PANEL.parentNode.removeChild(PANEL);
+    PANEL = null;
   }
 
   function 显示(d){
@@ -16976,11 +16961,6 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
     };
   }
 
-  function 移除面板(){
-    if (PANEL && PANEL.parentNode) PANEL.parentNode.removeChild(PANEL);
-    PANEL = null;
-  }
-
   var busy = false;
   function 执行诊断(){
     if (busy) return;
@@ -17006,7 +16986,7 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
     }
   }
 
-  // ── 常驻事件委托（挂在 document，capture，任何重建都不影响）──
+  // 常驻委托
   document.addEventListener('click', function(ev){
     var el = ev.target;
     while (el && el !== document) {
@@ -17015,12 +16995,13 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
     }
   }, true);
 
-  // ── 自愈循环：每 2 秒确保按钮存在（页面重建后自动恢复）──
+  // 自愈循环
   setInterval(确保按钮, 2000);
   确保按钮();
 })();
+// ═══════ ZK 代理诊断结束 ═══════
 </script>
-<!-- ZK 代理诊断注入 结束 -->
+		
 
 </body>
 

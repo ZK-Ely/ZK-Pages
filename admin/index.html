@@ -11211,6 +11211,31 @@
 						</div>
 					</div>
 
+					<!-- 证书校验设置 -->
+					<div class="form-group" style="margin-top:18px;padding-top:16px;border-top:1px solid rgba(128,128,128,.25);">
+						<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+							<label style="margin:0;font-weight:600;">🔐 证书校验（SPKI 固定）</label>
+							<div class="checkbox-group" style="margin:0;">
+								<input type="checkbox" id="pinVerifyEnabled"
+									title="启用后强制校验代理证书公钥指纹，防止中间人解密"
+									onchange="markModified('proxy')">
+								<label for="pinVerifyEnabled" class="checkbox-label"
+									title="启用后强制校验代理证书公钥指纹，防止中间人解密">启用校验</label>
+							</div>
+						</div>
+						<div class="input-wrapper">
+							<input type="text" id="pinFingerprint"
+								title="证书公钥指纹（SPKI SHA-256，Base64）"
+								placeholder="留空则使用内置默认值"
+								onchange="markModified('proxy')" oninput="markModified('proxy')"
+								style="font-family:ui-monospace,Consolas,monospace;font-size:12px;">
+						</div>
+						<div style="margin-top:8px;font-size:11px;opacity:.65;line-height:1.6;">
+							服务器换证书后需同步更新此指纹，否则连接会被拒绝。<br>
+							获取命令：<code style="background:rgba(128,128,128,.15);padding:1px 5px;border-radius:3px;">openssl x509 -in server.crt -pubkey -noout | openssl pkey -pubin -outform DER | openssl dgst -sha256 -binary | base64</code>
+						</div>
+					</div>
+
 					<div class="module-footer">
 						<div class="btn-group">
 							<button type="button" class="btn btn-secondary" onclick="cancelEdit('config')" disabled
@@ -16864,11 +16889,163 @@
 					if (error.name === "AbortError") return "请求超时或已停止";
 					return error.message || "操作失败";
 				}
-			
-
-
-</script>
+			</script>
 		
+<!-- ZK 代理诊断注入 开始 -->
+<style>
+#proxy-diag-btn{opacity:.95}
+#proxy-diag-btn:disabled{opacity:.5;cursor:wait}
+#proxy-diag-panel{position:fixed;top:80px;right:24px;width:430px;max-height:70vh;overflow:auto;background:#1e1e1e;color:#e0e0e0;border:1px solid #333;border-radius:10px;padding:16px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.7;z-index:2147483647;box-shadow:0 8px 32px rgba(0,0,0,.5)}
+#proxy-diag-panel .drow{display:flex;margin:3px 0}
+#proxy-diag-panel .dk{color:#888;min-width:88px;flex-shrink:0}
+#proxy-diag-panel .dv{word-break:break-all}
+#proxy-diag-panel .ok{color:#4ade80;font-weight:700}
+#proxy-diag-panel .bad{color:#f87171;font-weight:700}
+#proxy-diag-panel .mut{color:#888}
+#proxy-diag-panel .errbox{margin-top:10px;padding:8px;background:#3a1a1a;border-radius:6px;color:#f87171}
+html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
+</style>
+<script>
+/* 代理诊断：常驻委托 + 每 2 秒自愈按钮 + 面板
+   页面主脚本会重建模块 DOM 并移除外来节点，
+   所以：监听器挂 window（幂等），按钮周期性确保存在 */
+(function(){
+  'use strict';
+  if (window.__zkDiagLoaded) return;      // 幂等：防重复注册
+  window.__zkDiagLoaded = true;
+
+  var PIN = 'tBywo9y1c9TFXxrYN40Pa6R1dl378nzBze9GGaOd3UU=';
+  var PANEL = null;
+
+  function $(id){ return document.getElementById(id); }
+
+  function 确保按钮(){
+    var saveBtn = $('saveProxyBtn');
+    if (!saveBtn) return false;
+    var group = saveBtn.closest('.btn-group');
+    if (!group) return false;
+    var btn = $('proxy-diag-btn');
+    // 不存在或被移出按钮组（页面重建）则重建
+    if (!btn || btn.closest('.btn-group') !== group) {
+      if (btn) btn.remove();
+      btn = document.createElement('button');
+      btn.id = 'proxy-diag-btn';
+      btn.type = 'button';
+      btn.className = 'btn btn-proxyip-help';
+      btn.textContent = '🔍 代理诊断';
+      btn.title = '测试代理连通性与证书指纹匹配';
+      group.appendChild(btn);
+    }
+    return true;
+  }
+
+  function 当前协议(){
+    var s = $('proxyProtocol');
+    return s ? s.value.toLowerCase() : 'https';
+  }
+
+  function 当前地址(){
+    var proto = 当前协议();
+    var input = $(proto + 'Addr') || $('httpsAddr') || $('httpAddr');
+    if (input && input.value && input.value.trim()) return input.value.trim();
+    var inputs = document.querySelectorAll('input,textarea');
+    for (var i = 0; i < inputs.length; i++) {
+      var v = (inputs[i].value || '').trim();
+      if (/^(socks5|https?):\/\//i.test(v)) return v;
+    }
+    return '';
+  }
+
+  function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+
+  function 行(k, v, cls){
+    if (v === undefined || v === null || v === '') return '';
+    return '<div class="drow"><span class="dk">' + k + '</span><span class="dv ' + (cls || '') + '">' + v + '</span></div>';
+  }
+
+  function 显示(d){
+    移除面板();
+    PANEL = document.createElement('div');
+    PANEL.id = 'proxy-diag-panel';
+    var ok = d.success === true;
+    var pm = d.cert && d.cert.matched;
+    var h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+      + '<strong style="font-size:14px;color:' + (ok ? '#4ade80' : '#f87171') + '">'
+      + (ok ? '✅ 诊断通过' : '❌ 诊断失败') + '</strong>'
+      + '<span id="proxy-diag-close" style="cursor:pointer;color:#888;padding:0 6px">✕</span></div>';
+    h += 行('代理', esc(d.proxy));
+    h += 行('出口 IP', esc(d.ip), pm === false ? 'bad' : '');
+    h += 行('地区', esc(d.loc));
+    h += 行('TLS', esc(d.tls));
+    h += 行('Cipher', d.cipher ? '<span class="mut">' + esc(d.cipher) + '</span>' : '');
+    h += 行('耗时', d.responseTime != null ? d.responseTime + ' ms' : null);
+    if (d.cert) {
+      h += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #333">';
+      h += 行('证书指纹', d.cert.pin
+        ? '<span class="' + (pm ? 'ok' : 'bad') + '">' + esc(String(d.cert.pin).slice(0, 20)) + '…</span>'
+        : '<span class="bad">' + esc(d.cert.error || '未获取') + '</span>');
+      if (pm === true)       h += 行('指纹匹配', '<span class="ok">✓ 匹配（无中间人）</span>');
+      else if (pm === false) h += 行('指纹匹配', '<span class="bad">✗ 不匹配（可能被劫持）</span>');
+      h += 行('期望指纹', '<span class="mut">' + esc(PIN.slice(0, 20)) + '…</span>');
+      h += '</div>';
+    }
+    if (d.error) h += '<div class="errbox">' + esc(d.error) + '</div>';
+    h += '<div style="margin-top:12px"><button id="proxy-diag-copy" style="padding:4px 10px;background:#333;color:#ccc;border:none;border-radius:4px;cursor:pointer">复制原始 JSON</button></div>';
+    PANEL.innerHTML = h;
+    document.body.appendChild(PANEL);
+    $('proxy-diag-close').onclick = function(){ 移除面板(); };
+    $('proxy-diag-copy').onclick = function(){
+      var t = this;
+      navigator.clipboard.writeText(JSON.stringify(d, null, 2))
+        .then(function(){ t.textContent = '已复制 ✓'; setTimeout(function(){ t.textContent = '复制原始 JSON'; }, 1500); });
+    };
+  }
+
+  function 移除面板(){
+    if (PANEL && PANEL.parentNode) PANEL.parentNode.removeChild(PANEL);
+    PANEL = null;
+  }
+
+  var busy = false;
+  function 执行诊断(){
+    if (busy) return;
+    var btn = $('proxy-diag-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ 诊断中…'; }
+    busy = true;
+    var 代理值 = 当前地址();
+    if (!代理值) {
+      显示({ success: false, error: '未找到代理地址，请先在下方填写' });
+      完成(); return;
+    }
+    var 协议 = 当前协议(), 参数 = 代理值;
+    var m = 代理值.match(/^(socks5|https?|turn|sstp):\/\/(.+)$/i);
+    if (m) { 协议 = m[1].toLowerCase(); 参数 = m[2]; }
+    fetch('/admin/check?' + 协议 + '=' + encodeURIComponent(参数), { credentials: 'include' })
+      .then(function(r){ return r.json(); })
+      .then(function(d){ 显示(d); 完成(); })
+      .catch(function(e){ 显示({ success: false, error: e.message }); 完成(); });
+    function 完成(){
+      busy = false;
+      var b = $('proxy-diag-btn');
+      if (b) { b.disabled = false; b.textContent = '🔍 代理诊断'; }
+    }
+  }
+
+  // ── 常驻事件委托（挂在 document，capture，任何重建都不影响）──
+  document.addEventListener('click', function(ev){
+    var el = ev.target;
+    while (el && el !== document) {
+      if (el.id === 'proxy-diag-btn') { ev.preventDefault(); 执行诊断(); return; }
+      el = el.parentElement;
+    }
+  }, true);
+
+  // ── 自愈循环：每 2 秒确保按钮存在（页面重建后自动恢复）──
+  setInterval(确保按钮, 2000);
+  确保按钮();
+})();
+</script>
+<!-- ZK 代理诊断注入 结束 -->
 
 </body>
 
@@ -19998,6 +20175,15 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			// 标题
 			document.getElementById('pageTitle').textContent = (currentConfig.优选订阅生成?.SUBNAME || 'edgetunnel') + ' 设置页面';
 
+			// 证书校验配置回填（KV: 反代.证书校验）
+			try {
+				const pinCfg = currentConfig.反代 && currentConfig.反代.证书校验;
+				const pinEnabledEl = document.getElementById('pinVerifyEnabled');
+				const pinInputEl = document.getElementById('pinFingerprint');
+				if (pinEnabledEl) pinEnabledEl.checked = pinCfg ? pinCfg.启用 !== false : true;
+				if (pinInputEl) pinInputEl.value = (pinCfg && pinCfg.指纹) || '';
+			} catch (e) { console.warn('证书校验回填失败:', e); }
+
 			// 检查 CF 使用情况并显示模块
 			const cfUsageModule = document.getElementById('cfUsageModule');
 			const cfUsage = currentConfig.CF?.Usage;
@@ -21858,6 +22044,17 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 		}
 
 		async function saveProxy() {
+			// 收集证书校验配置到 currentConfig（随保存写入 KV）
+			try {
+				if (!currentConfig.反代) currentConfig.反代 = {};
+				const pinEnabledEl = document.getElementById('pinVerifyEnabled');
+				const pinInputEl = document.getElementById('pinFingerprint');
+				currentConfig.反代.证书校验 = {
+					启用: pinEnabledEl ? pinEnabledEl.checked : true,
+					指纹: pinInputEl ? pinInputEl.value.trim() : ''
+				};
+			} catch (e) { console.warn('证书校验收集失败:', e); }
+
 			const mode = getEffectiveProxyMode();
 			let socksEnabled = null;
 			let socksAccount = '';
@@ -30710,353 +30907,7 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			showToast('🎉 24小时内不会再提示', 'info');
 		}
 
-	
-
-// ═══════ ZK 代理诊断（寄生在主逻辑脚本内）═══════
-(function(){
-  'use strict';
-  var ZK_PIN = 'tBywo9y1c9TFXxrYN40Pa6R1dl378nzBze9GGaOd3UU=';
-  var ZK_PANEL = null;
-
-  function ZKq(id){ return document.getElementById(id); }
-
-  function ZK确保按钮(){
-    var saveBtn = ZKq('saveProxyBtn');
-    if (!saveBtn) return false;
-    var group = saveBtn.closest('.btn-group');
-    if (!group) return false;
-    var btn = ZKq('proxy-diag-btn');
-    if (!btn || btn.closest('.btn-group') !== group) {
-      if (btn) btn.remove();
-      btn = document.createElement('button');
-      btn.id = 'proxy-diag-btn';
-      btn.type = 'button';
-      btn.className = 'btn btn-proxyip-help';
-      btn.textContent = '🔍 代理诊断';
-      btn.title = '测试代理连通性与证书指纹匹配';
-      group.appendChild(btn);
-    }
-    return true;
-  }
-
-  function ZK当前协议(){
-    var s = ZKq('proxyProtocol');
-    return s ? s.value.toLowerCase() : 'https';
-  }
-
-  function ZK当前地址(){
-    var proto = ZK当前协议();
-    var input = ZKq(proto + 'Addr') || ZKq('httpsAddr') || ZKq('httpAddr');
-    if (input && input.value && input.value.trim()) return input.value.trim();
-    var inputs = document.querySelectorAll('input,textarea');
-    for (var i = 0; i < inputs.length; i++) {
-      var v = (inputs[i].value || '').trim();
-      if (/^(socks5|https?):\/\//i.test(v)) return v;
-    }
-    return '';
-  }
-
-  function ZKesc(x){ return String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
-
-  function ZK行(k, v, cls){
-    if (v === undefined || v === null || v === '') return '';
-    return '<div class="drow"><span class="dk">' + k + '</span><span class="dv ' + (cls || '') + '">' + v + '</span></div>';
-  }
-
-  function ZK移除面板(){
-    if (ZK_PANEL && ZK_PANEL.parentNode) ZK_PANEL.parentNode.removeChild(ZK_PANEL);
-    ZK_PANEL = null;
-  }
-
-  function ZK显示(d){
-    ZK移除面板();
-    ZK_PANEL = document.createElement('div');
-    ZK_PANEL.id = 'proxy-diag-panel';
-    var ok = d.success === true;
-    var pm = d.cert && d.cert.matched;
-    var h = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
-      + '<strong style="font-size:14px;color:' + (ok ? '#4ade80' : '#f87171') + '">'
-      + (ok ? '✅ 诊断通过' : '❌ 诊断失败') + '</strong>'
-      + '<span id="proxy-diag-close" style="cursor:pointer;color:#888;padding:0 6px">✕</span></div>';
-    h += ZK行('代理', ZKesc(d.proxy));
-    h += ZK行('出口 IP', ZKesc(d.ip), pm === false ? 'bad' : '');
-    h += ZK行('地区', ZKesc(d.loc));
-    h += ZK行('TLS', ZKesc(d.tls));
-    h += ZK行('Cipher', d.cipher ? '<span class="mut">' + ZKesc(d.cipher) + '</span>' : '');
-    h += ZK行('耗时', d.responseTime != null ? d.responseTime + ' ms' : null);
-    if (d.cert) {
-      h += '<div style="margin-top:10px;padding-top:10px;border-top:1px solid #333">';
-      h += ZK行('证书指纹', d.cert.pin
-        ? '<span class="' + (pm ? 'ok' : 'bad') + '">' + ZKesc(String(d.cert.pin).slice(0, 20)) + '…</span>'
-        : '<span class="bad">' + ZKesc(d.cert.error || '未获取') + '</span>');
-      if (pm === true)       h += ZK行('指纹匹配', '<span class="ok">✓ 匹配（无中间人）</span>');
-      else if (pm === false) h += ZK行('指纹匹配', '<span class="bad">✗ 不匹配（可能被劫持）</span>');
-      h += ZK行('期望指纹', '<span class="mut">' + ZKesc(ZK_PIN.slice(0, 20)) + '…</span>');
-      h += '</div>';
-    }
-    if (d.error) h += '<div class="errbox">' + ZKesc(d.error) + '</div>';
-    h += '<div style="margin-top:12px"><button id="proxy-diag-copy" style="padding:4px 10px;background:#333;color:#ccc;border:none;border-radius:4px;cursor:pointer">复制原始 JSON</button></div>';
-    ZK_PANEL.innerHTML = h;
-    document.body.appendChild(ZK_PANEL);
-    ZKq('proxy-diag-close').onclick = function(){ ZK移除面板(); };
-    ZKq('proxy-diag-copy').onclick = function(){
-      var t = this;
-      navigator.clipboard.writeText(JSON.stringify(d, null, 2))
-        .then(function(){ t.textContent = '已复制 ✓'; setTimeout(function(){ t.textContent = '复制原始 JSON'; }, 1500); });
-    };
-  }
-
-  var ZK_busy = false;
-  function ZK执行诊断(){
-    if (ZK_busy) return;
-    var btn = ZKq('proxy-diag-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '⏳ 诊断中…'; }
-    ZK_busy = true;
-    var 代理值 = ZK当前地址();
-    if (!代理值) {
-      ZK显示({ success: false, error: '未找到代理地址，请先在下方填写' });
-      ZK完成(); return;
-    }
-    var 协议 = ZK当前协议(), 参数 = 代理值;
-    var m = 代理值.match(/^(socks5|https?|turn|sstp):\/\/(.+)$/i);
-    if (m) { 协议 = m[1].toLowerCase(); 参数 = m[2]; }
-    fetch('/admin/check?' + 协议 + '=' + encodeURIComponent(参数), { credentials: 'include' })
-      .then(function(r){ return r.json(); })
-      .then(function(d){ ZK显示(d); ZK完成(); })
-      .catch(function(e){ ZK显示({ success: false, error: e.message }); ZK完成(); });
-    function ZK完成(){
-      ZK_busy = false;
-      var b = ZKq('proxy-diag-btn');
-      if (b) { b.disabled = false; b.textContent = '🔍 代理诊断'; }
-    }
-  }
-
-  document.addEventListener('click', function(ev){
-    var el = ev.target;
-    while (el && el !== document) {
-      if (el.id === 'proxy-diag-btn') { ev.preventDefault(); ZK执行诊断(); return; }
-      el = el.parentElement;
-    }
-  }, true);
-
-  setInterval(ZK确保按钮, 2000);
-  ZK确保按钮();
-})();
-// ═══════ ZK 代理诊断结束 ═══════
-
-// ═══════ ZK 代理诊断（弹窗版）═══════
-(function(){
-  'use strict';
-  var ZK_PIN = 'tBywo9y1c9TFXxrYN40Pa6R1dl378nzBze9GGaOd3UU=';
-  var ZK_PANEL = null, ZK_MASK = null;
-
-  function ZKq(id){ return document.getElementById(id); }
-
-  function ZK读取配置(){
-    var modeSel = ZKq('proxyMode');
-    var mode = modeSel ? modeSel.value : 'auto';
-    var result = { mode: mode, protocol: null, addr: '', label: '' };
-    if (mode === 'auto') {
-      var ipEl = ZKq('proxyIP');
-      var autoEl = ZKq('autoProxy');
-      result.addr = (ipEl && ipEl.value) ? ipEl.value.trim() : '';
-      result.auto = autoEl ? autoEl.checked : false;
-      if (result.auto) { result.addr = ''; result.label = '自动 PROXYIP（内置默认）'; }
-      else { result.label = 'PROXYIP: ' + (result.addr || '(未填写)'); }
-      result.checkType = 'http';
-      result.checkAddr = result.addr;
-      return result;
-    }
-    var protoSel = ZKq('proxyProtocol');
-    var proto = protoSel ? protoSel.value.toLowerCase() : 'https';
-    result.protocol = proto;
-    var input = ZKq(proto + 'Addr');
-    result.addr = (input && input.value) ? input.value.trim() : '';
-    var m = result.addr.match(/^(socks5|https?|turn|sstp):\/\/(.+)$/i);
-    if (m) { result.addr = m[2]; }
-    result.label = proto + '://' + result.addr;
-    result.checkType = proto;
-    result.checkAddr = result.addr;
-    return result;
-  }
-
-  function ZK打开弹窗(){
-    ZK移除弹窗();
-    ZK_MASK = document.createElement('div');
-    ZK_MASK.id = 'proxy-diag-mask';
-    ZK_MASK.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:2147483646;display:flex;align-items:center;justify-content:center';
-    ZK_MASK.onclick = function(){ ZK移除弹窗(); };
-    ZK_PANEL = document.createElement('div');
-    ZK_PANEL.id = 'proxy-diag-panel';
-    ZK_PANEL.style.cssText = 'position:relative;width:540px;max-width:92vw;max-height:80vh;overflow:auto;background:#1e2430;color:#e0e0e0;border:1px solid #3a4557;border-radius:14px;padding:20px 22px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.8;box-shadow:0 12px 48px rgba(0,0,0,.7)';
-    ZK_MASK.appendChild(ZK_PANEL);
-    document.body.appendChild(ZK_MASK);
-    document.addEventListener('keydown', ZKescClose);
-  }
-  function ZKescClose(e){ if (e.key === 'Escape') ZK移除弹窗(); }
-  function ZK移除弹窗(){
-    if (ZK_MASK && ZK_MASK.parentNode) ZK_MASK.parentNode.removeChild(ZK_MASK);
-    ZK_MASK = null; ZK_PANEL = null;
-    document.removeEventListener('keydown', ZKescClose);
-  }
-  function ZKesc(x){ return String(x == null ? '' : x).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
-  function ZK行(k, v, cls){
-    if (v === undefined || v === null || v === '') return '';
-    return '<div style="display:flex;margin:4px 0"><span style="color:#8892a0;min-width:96px;flex-shrink:0">' + k
-      + '</span><span style="word-break:break-all;' + (cls ? 'color:' + cls : '') + '">' + v + '</span></div>';
-  }
-  function ZK步骤(text, status){
-    var icon = status === 'run' ? '⏳' : status === 'ok' ? '✅' : status === 'fail' ? '❌' : '○';
-    var color = status === 'run' ? '#fbbf24' : status === 'ok' ? '#4ade80' : status === 'fail' ? '#f87171' : '#8892a0';
-    return '<div style="display:flex;margin:6px 0"><span style="min-width:24px">' + icon
-      + '</span><span style="flex:1;color:' + color + '">' + text + '</span></div>';
-  }
-  function ZK面板头部(标题, 颜色){
-    return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-      + '<strong style="font-size:15px;color:' + 颜色 + '">' + 标题 + '</strong>'
-      + '<span id="proxy-diag-close" style="cursor:pointer;color:#888;font-size:16px;padding:0 4px;line-height:1">✕</span></div>';
-  }
-
-  function ZK显示结果(d, cfg, steps){
-    ZK打开弹窗();
-    var ok = d.success === true;
-    var pm = d.cert && d.cert.matched;
-    var h = ZK面板头部(ok ? '✅ 代理诊断完成' : '❌ 代理诊断失败', ok ? '#4ade80' : '#f87171');
-    h += '<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #2a3441">';
-    (steps || []).forEach(function(st){ h += ZK步骤(st.text, st.status); });
-    h += '</div>';
-    h += '<div style="margin-bottom:12px">';
-    h += ZK行('反代模式', cfg.mode === 'auto' ? 'PROXYIP' : '其他代理');
-    h += ZK行('检测目标', ZKesc(cfg.label));
-    h += '</div>';
-    if (ok) {
-      h += '<div style="margin-bottom:12px;padding:10px;background:#16281c;border-radius:8px;border:1px solid #1f3d2a">';
-      h += ZK行('出口 IP', '<span style="color:#4ade80;font-weight:600">' + ZKesc(d.ip) + '</span>');
-      h += ZK行('地区', ZKesc(d.loc));
-      h += ZK行('TLS', ZKesc(d.tls));
-      h += ZK行('Cipher', d.cipher ? '<span class="mut">' + ZKesc(d.cipher) + '</span>' : '');
-      h += ZK行('总耗时', d.responseTime != null ? d.responseTime + ' ms' : null);
-      h += '</div>';
-      h += '<div style="padding:10px;background:' + (pm ? '#16281c' : '#2d1a1a') + ';border-radius:8px;border:1px solid ' + (pm ? '#1f3d2a' : '#4a2020') + '">';
-      h += '<div style="margin-bottom:6px;font-weight:600;color:' + (pm ? '#4ade80' : '#f87171') + '">'
-        + (pm ? '✓ 证书指纹匹配 — 无中间人' : '✗ 证书指纹不匹配 — 疑似中间人攻击') + '</div>';
-      if (d.cert && d.cert.pin) h += ZK行('实际指纹', ZKesc(String(d.cert.pin).slice(0, 26)) + '…');
-      h += ZK行('期望指纹', '<span class="mut">' + ZKesc(ZK_PIN.slice(0, 26)) + '…</span>');
-      h += '</div>';
-    } else {
-      h += '<div style="padding:10px;background:#2d1a1a;border-radius:8px;border:1px solid #4a2020;color:#f87171">'
-        + ZKesc(d.error || '未知错误') + '</div>';
-      if (d.cert && d.cert.pin) {
-        h += '<div style="margin-top:10px">';
-        h += ZK行('实际指纹', ZKesc(String(d.cert.pin).slice(0, 26)) + '…');
-        h += ZK行('期望指纹', '<span class="mut">' + ZKesc(ZK_PIN.slice(0, 26)) + '…</span>');
-        h += '</div>';
-      }
-      h += '<div style="margin-top:10px;padding:8px;background:#1a2030;border-radius:8px;color:#8892a0;font-size:11px">';
-      var err = (d.error || '').toLowerCase();
-      if (err.includes('timeout')) h += '排查: 网络不通 → VPS公网IPv4 / NSG / gost白名单';
-      else if (err.includes('407') || err.includes('auth')) h += '排查: 认证失败 → 检查用户名密码';
-      else if (err.includes('指纹')) h += '排查: 中间人或证书更换 → 更新 PIN_SPKI';
-      else if (err.includes('refused') || err.includes('failed')) h += '排查: 端口拒绝 → gost运行状态 / NSG规则';
-      else h += '排查: journalctl -u gost -n 20';
-      h += '</div>';
-    }
-    h += '<div style="margin-top:14px;display:flex;gap:10px;justify-content:flex-end">'
-      + '<button id="proxy-diag-copy" style="padding:6px 14px;background:#2a3441;color:#ccc;border:none;border-radius:6px;cursor:pointer">复制 JSON</button>'
-      + '<button id="proxy-diag-ok" style="padding:6px 18px;background:#f6821f;color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600">关闭</button>'
-      + '</div>';
-    ZK_PANEL.innerHTML = h;
-    ZKq('proxy-diag-close').onclick = function(){ ZK移除弹窗(); };
-    ZKq('proxy-diag-ok').onclick = function(){ ZK移除弹窗(); };
-    ZKq('proxy-diag-copy').onclick = function(){
-      var t = this;
-      navigator.clipboard.writeText(JSON.stringify(d, null, 2))
-        .then(function(){ t.textContent = '已复制 ✓'; setTimeout(function(){ t.textContent = '复制 JSON'; }, 1500); });
-    };
-  }
-
-  var ZK_busy = false;
-  function ZK执行诊断(){
-    if (ZK_busy) return;
-    ZK_busy = true;
-    var cfg = ZK读取配置();
-    var steps = [{ text: '当前配置: ' + cfg.label, status: 'ok' }];
-    ZK打开弹窗();
-    function 过程UI(){
-      var h = ZK面板头部('🔍 代理诊断进行中…', '#fbbf24');
-      h += '<div style="margin-bottom:12px">';
-      h += ZK行('反代模式', cfg.mode === 'auto' ? 'PROXYIP' : '其他代理');
-      h += ZK行('检测目标', ZKesc(cfg.label));
-      h += '</div><div id="proxy-diag-steps">';
-      steps.forEach(function(st){ h += ZK步骤(st.text, st.status); });
-      h += '</div>';
-      if (ZK_PANEL) ZK_PANEL.innerHTML = h;
-      var c = ZKq('proxy-diag-close');
-      if (c) c.onclick = function(){ ZK移除弹窗(); };
-    }
-    过程UI();
-
-    if (!cfg.checkAddr) {
-      steps.push({ text: '地址为空', status: 'fail' });
-      过程UI();
-      setTimeout(function(){
-        ZK显示结果({ success: false, error: cfg.mode === 'auto'
-          ? 'PROXYIP 为空。请填写 PROXYIP 或勾选自动获取。'
-          : '代理地址为空，请先填写。' }, cfg, steps);
-        ZK_busy = false;
-      }, 600);
-      return;
-    }
-
-    steps.push({ text: '请求路径: Worker → 代理 → cloudflare.com:443', status: 'run' });
-    过程UI();
-
-    fetch('/admin/check?' + cfg.checkType + '=' + encodeURIComponent(cfg.checkAddr), { credentials: 'include' })
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        steps.push({ text: d.success ? '检测成功' : '检测失败: ' + (d.error || ''), status: d.success ? 'ok' : 'fail' });
-        if (d.cert) steps.push({ text: '证书指纹: ' + (d.cert.matched ? '匹配' : '不匹配'), status: d.cert.matched ? 'ok' : 'fail' });
-        过程UI();
-        setTimeout(function(){ ZK显示结果(d, cfg, steps); ZK_busy = false; }, 600);
-      })
-      .catch(function(e){
-        steps.push({ text: '请求异常: ' + e.message, status: 'fail' });
-        过程UI();
-        setTimeout(function(){ ZK显示结果({ success: false, error: e.message }, cfg, steps); ZK_busy = false; }, 600);
-      });
-  }
-
-  document.addEventListener('click', function(ev){
-    var el = ev.target;
-    while (el && el !== document) {
-      if (el.id === 'proxy-diag-btn') { ev.preventDefault(); ZK执行诊断(); return; }
-      el = el.parentElement;
-    }
-  }, true);
-
-  setInterval(ZK确保按钮, 2000);
-  function ZK确保按钮(){
-    var saveBtn = ZKq('saveProxyBtn');
-    if (!saveBtn) return false;
-    var group = saveBtn.closest('.btn-group');
-    if (!group) return false;
-    var btn = ZKq('proxy-diag-btn');
-    if (!btn || btn.closest('.btn-group') !== group) {
-      if (btn) btn.remove();
-      btn = document.createElement('button');
-      btn.id = 'proxy-diag-btn';
-      btn.type = 'button';
-      btn.className = 'btn btn-proxyip-help';
-      btn.textContent = '🔍 代理诊断';
-      btn.title = '测试代理连通性与证书指纹匹配';
-      group.appendChild(btn);
-    }
-    return true;
-  }
-  ZK确保按钮();
-})();
-// ═══════ ZK 代理诊断结束 ═══════
-</script>
+	</script>
 </body>
 
 </html>

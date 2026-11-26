@@ -6849,45 +6849,6 @@
 			color: #1f2937 !important;
 		}
 
-		#subAPISelect {
-			width: 100%;
-			padding: 12px;
-			border: 2px solid #e5e7eb;
-			border-radius: 8px;
-			font-size: 14px;
-			background-color: #fff;
-			color: #1f2937;
-			cursor: pointer;
-			transition: all 0.3s ease;
-		}
-
-		#subAPISelect:hover {
-			border-color: #3b82f6;
-			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-		}
-
-		#subAPISelect:focus {
-			outline: none;
-			border-color: #3b82f6;
-			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-		}
-
-		html.dark-mode #subAPISelect {
-			background-color: #1f2937;
-			color: #f3f4f6;
-			border-color: #4b5563;
-		}
-
-		html.dark-mode #subAPISelect:hover {
-			border-color: #60a5fa;
-			box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
-		}
-
-		html.dark-mode #subAPISelect:focus {
-			border-color: #60a5fa;
-			box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
-		}
-
 		/* 节点链接输入包装器 */
 		.link-input-wrapper {
 			display: flex;
@@ -11563,14 +11524,6 @@
 				</div>
 				<div class="module-content">
 
-					<div class="form-group">
-						<label for="subAPI">订阅转换后端</label>
-						<div class="readonly-wrapper" onclick="openSubAPIModal()">
-							<input type="text" id="subAPI" title="订阅转换后端" readonly
-								placeholder="未配置（点击设置）" class="subapi-input">
-						</div>
-					</div>
-
 					<div class="form-group" style="align-items: start;">
 						<label for="subConfigSelect" style="padding-top: 10px;">订阅转换配置文件</label>
 						<div class="input-wrapper" style="flex-direction: column; align-items: stretch;">
@@ -11969,38 +11922,6 @@
 		</div>
 	</div>
 
-	<!-- 订阅转换后端设置弹窗 -->
-	<div class="modal-overlay" id="subAPIModal">
-		<div class="modal" onclick="event.stopPropagation()">
-			<button type="button" class="modal-close" onclick="closeSubAPIModal()">×</button>
-			<h2 class="subapi-modal-title">⚙️ 订阅转换后端</h2>
-			<div class="form-group subapi-form-group">
-				<label>订阅转换后端</label>
-				<select id="subAPISelect" onchange="handleSubAPISelectChange()">
-					<option value="">-- 加载中，请稍候 --</option>
-				</select>
-			</div>
-			<div class="form-group subapi-form-group" id="customSubAPIInputGroup" style="display: none;">
-				<label>自定义后端地址</label>
-				<input type="text" id="testSubAPIInput" placeholder="输入订阅转换后端地址">
-			</div>
-			<div class="form-group subapi-form-group">
-				<label>访问密钥（可选）</label>
-				<input type="password" id="subAPIKeyInput" placeholder="后端若启用了 AUTH_KV 密钥，在此填写"
-					autocomplete="off">
-				<div style="margin-top:6px;font-size:11px;opacity:.65;line-height:1.5;">
-					通过 <code>Authorization: Bearer</code> 头传递，不写入 URL，避免暴露在日志中。
-				</div>
-			</div>
-			<div id="subAPIStatus" class="subapi-status"></div>
-			<div class="subapi-buttons">
-				<button type="button" class="btn btn-primary btn-test-api" onclick="testSubAPI()">可用性验证</button>
-				<button type="button" class="btn btn-primary btn-confirm-api" id="subAPIConfirmBtn"
-					onclick="confirmSubAPI()" disabled>确定</button>
-				<button type="button" class="btn btn-secondary btn-cancel-api" onclick="closeSubAPIModal()">取消</button>
-			</div>
-		</div>
-	</div>
 
 	<!-- TelegramBot 通知设置弹窗 -->
 	<div class="modal-overlay" id="telegramConfigModal">
@@ -20365,7 +20286,6 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			applyProxyConfigToForm();
 
 			// 订阅转换配置
-			document.getElementById('subAPI').value = currentConfig.订阅转换配置?.SUBAPI || '';
 			document.getElementById('subConfig').value = currentConfig.订阅转换配置?.SUBCONFIG || '';
 			document.getElementById('emoji').checked = currentConfig.订阅转换配置?.SUBEMOJI || false;
 			syncSubListOption();
@@ -22327,15 +22247,9 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			const hasEXPAND = currentConfig.订阅转换配置?.EXPAND !== undefined;
 			currentConfig.订阅转换配置 = {
 				...(currentConfig.订阅转换配置 || {}),
-				SUBAPI: document.getElementById('subAPI').value,
 				SUBCONFIG: document.getElementById('subConfig').value,
 				SUBEMOJI: document.getElementById('emoji').checked
 			};
-			// 兜底：若密钥输入框有值但 currentConfig 里没有，从 UI 读取
-			if (!currentConfig.订阅转换配置.SUBAPI_KEY) {
-				const keyEl = document.getElementById('subAPIKeyInput');
-				currentConfig.订阅转换配置.SUBAPI_KEY = keyEl ? keyEl.value.trim() : '';
-			}
 			if (hasSubList) {
 				currentConfig.订阅转换配置.SUBLIST = document.getElementById('subList').checked;
 			}
@@ -22470,7 +22384,6 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			} else if (section === 'proxy') {
 				applyProxyConfigToForm();
 			} else if (section === 'convert') {
-				document.getElementById('subAPI').value = currentConfig.订阅转换配置?.SUBAPI || '';
 				document.getElementById('subConfig').value = currentConfig.订阅转换配置?.SUBCONFIG || '';
 				document.getElementById('emoji').checked = currentConfig.订阅转换配置?.SUBEMOJI || false;
 				syncSubListOption();
@@ -25813,54 +25726,20 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			showToast('✅ 链式代理节点已追加到自定义优选地址', 'success');
 		}
 
-		function openSubAPIModal() {
-			// 回填已保存的后端密钥
-			try {
-				const keyEl = document.getElementById('subAPIKeyInput');
-				if (keyEl) keyEl.value = (currentConfig.订阅转换配置 && currentConfig.订阅转换配置.SUBAPI_KEY) || '';
-			} catch (e) { console.warn('SUBAPI_KEY 回填失败:', e); }
+		function openSubAPIModal() { /* noop */ }
 
-			const currentValue = document.getElementById('subAPI').value;
-			document.getElementById('subAPIStatus').style.display = 'none';
-			document.getElementById('subAPIStatus').textContent = '';
-			document.getElementById('subAPIConfirmBtn').disabled = true;
-			document.getElementById('subAPIConfirmBtn').style.opacity = '0.5';
-			document.getElementById('subAPIModal').classList.add('show');
-
-			// 加载 SUBAPI 列表
-			loadSubAPIList(currentValue);
-		}
-
-		function closeSubAPIModal(event) {
-			if (event && event.target.id !== 'subAPIModal') return;
-			document.getElementById('subAPIModal').classList.remove('show');
-			document.getElementById('testSubAPIInput').value = '';
-			document.getElementById('subAPIStatus').style.display = 'none';
-		}
+		function closeSubAPIModal() { /* noop */ }
 
 		async function loadSubAPIList(currentValue) {
 			// 不再从任何远程地址拉取预置后端列表（避免第三方依赖与隐私泄露）
 			// 只提供「自定义」一项，由用户填写自己的后端
-			const selectEl = document.getElementById('subAPISelect');
 			selectEl.innerHTML = '<option value="custom">🔧 自定义</option>';
 			selectEl.value = 'custom';
 			document.getElementById('customSubAPIInputGroup').style.display = 'block';
 			document.getElementById('testSubAPIInput').value = (currentValue && currentValue.trim()) || '';
 		}
 
-		function handleSubAPISelectChange() {
-			const selectEl = document.getElementById('subAPISelect');
-			const customInputGroup = document.getElementById('customSubAPIInputGroup');
-			const testInput = document.getElementById('testSubAPIInput');
-
-			if (selectEl.value === 'custom') {
-				customInputGroup.style.display = 'block';
-				testInput.focus();
-			} else {
-				customInputGroup.style.display = 'none';
-				testInput.value = selectEl.value;
-			}
-		}
+		function handleSubAPISelectChange() { /* noop */ }
 
 		// ProxyIP 帮助模态框函数
 		function showProxyIPHelpModal() {
@@ -26339,92 +26218,9 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			return parsedURL.origin + path;
 		}
 
-		async function testSubAPI() {
-			let input;
-			const selectEl = document.getElementById('subAPISelect');
-
-			if (selectEl.value === 'custom' || !selectEl.value) {
-				// 如果是自定义或未选择，从输入框获取
-				input = document.getElementById('testSubAPIInput').value.trim();
-			} else {
-				// 否则从下拉框获取
-				input = selectEl.value.trim();
-				document.getElementById('testSubAPIInput').value = input;
-			}
-
-			if (!input) {
-				showStatus('请输入地址', 'error');
-				return;
-			}
-
-			const baseURL = normalizeSubAPIURL(input);
-			if (!baseURL) {
-				showStatus('地址格式无效', 'error');
-				return;
-			}
-
-			// 逐个尝试常见探测端点；/health 是 dianbanjiu/subconverter 的标准端点
-			const 探测端点 = ['/health', '/version', ''];
-			const statusEl = document.getElementById('subAPIStatus');
-			const buttons = document.querySelectorAll('#subAPIModal button.btn');
-			const testBtn = buttons[0];
-
-			try {
-				testBtn.disabled = true;
-				statusEl.textContent = '⏳ 检测中...';
-				statusEl.style.display = 'block';
-				statusEl.style.background = 'linear-gradient(135deg, #3b82f6 0, #1d4ed8 100%)';
-				statusEl.style.color = '#fff';
-
-				let 成功 = false;
-				let 最后错误 = '';
-
-				for (const 端点 of 探测端点) {
-					const 尝试URL = baseURL + 端点;
-					try {
-						const response = await fetch(尝试URL, { method: 'GET' });
-						if (response.status === 200) {
-							const content = (await response.text()).slice(0, 300);
-							// /health 返回纯文本 ok；/version 可能返回版本串
-							const lower = content.toLowerCase();
-							const 是HTML = lower.includes('<!doctype') || lower.includes('<html');
-							if (!是HTML) {
-								成功 = true;
-								statusEl.style.background = 'linear-gradient(135deg, #10b981 0, #059669 100%)';
-								statusEl.textContent = '✅ 连接成功（' + 端点 + '）: ' + (content.trim() || 'ok');
-								break;
-							}
-							最后错误 = '端点 ' + (端点 || '/') + ' 返回 HTML（可能是静态站而非 API）';
-						} else {
-							最后错误 = '端点 ' + (端点 || '/') + ' 返回 HTTP ' + response.status;
-						}
-					} catch (e) {
-						最后错误 = 端点 + ' 请求异常: ' + e.message;
-					}
-				}
-
-				if (成功) {
-					document.getElementById('subAPIConfirmBtn').disabled = false;
-					document.getElementById('subAPIConfirmBtn').style.opacity = '1';
-					document.getElementById('subAPIConfirmBtn').dataset.validURL = baseURL;
-				} else {
-					statusEl.style.background = 'linear-gradient(135deg, #ef4444 0, #dc2626 100%)';
-					statusEl.textContent = '❌ ' + (最后错误 || '所有端点均不可用');
-					document.getElementById('subAPIConfirmBtn').disabled = true;
-					document.getElementById('subAPIConfirmBtn').style.opacity = '0.5';
-				}
-			} catch (error) {
-				statusEl.style.background = 'linear-gradient(135deg, #ef4444 0, #dc2626 100%)';
-				statusEl.textContent = '❌ 检测失败: ' + error.message;
-				document.getElementById('subAPIConfirmBtn').disabled = true;
-				document.getElementById('subAPIConfirmBtn').style.opacity = '0.5';
-			} finally {
-				testBtn.disabled = false;
-			}
-		}
+		async function testSubAPI() { /* noop */ }
 
 		function showStatus(message, type) {
-			const statusEl = document.getElementById('subAPIStatus');
 			const prefix = type === 'error' ? '❌' : 'ℹ️';
 			statusEl.textContent = prefix + ' ' + message;
 			statusEl.style.display = 'block';
@@ -26436,20 +26232,7 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			statusEl.style.color = '#fff';
 		}
 
-		function confirmSubAPI() {
-			const validURL = document.getElementById('subAPIConfirmBtn').dataset.validURL;
-			if (!validURL) return;
-
-			document.getElementById('subAPI').value = validURL;
-			// 保存后端访问密钥到 currentConfig（随保存写入 KV）
-			try {
-				if (!currentConfig.订阅转换配置) currentConfig.订阅转换配置 = {};
-				const keyEl = document.getElementById('subAPIKeyInput');
-				currentConfig.订阅转换配置.SUBAPI_KEY = keyEl ? keyEl.value.trim() : '';
-			} catch (e) { console.warn('SUBAPI_KEY 收集失败:', e); }
-			markModified('convert');
-			closeSubAPIModal();
-		}
+		function confirmSubAPI() { /* noop */ }
 
 		// ==================== 消息通知设置相关函数 ====================
 
@@ -27131,7 +26914,6 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 				} else if (section === 'proxy') {
 					applyProxyConfigToForm();
 				} else if (section === 'convert') {
-					document.getElementById('subAPI').value = currentConfig.订阅转换配置?.SUBAPI || '';
 					document.getElementById('subConfig').value = currentConfig.订阅转换配置?.SUBCONFIG || '';
 					document.getElementById('emoji').checked = currentConfig.订阅转换配置?.SUBEMOJI || false;
 					syncSubListOption();

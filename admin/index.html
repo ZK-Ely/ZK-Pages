@@ -10680,7 +10680,7 @@
 		.xmux-field-error { color: #d1242f; font-size: 11.5px; margin: 0; min-height: 14px; }
 		.xmux-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
 		@media (max-width: 640px) { .xmux-grid { grid-template-columns: 1fr; } }
-	</style>
+</style>
 
 </head>
 
@@ -11354,7 +11354,6 @@
 										title="启用自动获取: 使用默认内置的PROXYIP">启用自动获取</label>
 								</div>
 							</div>
-						</div>
 						</div>
 					</div>
 
@@ -17666,13 +17665,12 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
 	</div>
 
 	<!-- 订阅鉴权与 UUID 说明弹窗 -->
-
-	<!-- 连接复用（XHTTP xmux 参数）详细设置弹窗 -->
+	<!-- 连接复用（XHTTP xmux 参数）弹窗 -->
 	<div class="modal-overlay" id="xmuxModal" onclick="closeXmuxModal(event)">
 		<div class="modal xmux-modal" onclick="event.stopPropagation()">
 			<button type="button" class="modal-close" onclick="closeXmuxModal()">×</button>
 			<h2 class="subapi-modal-title">🔗 连接复用详细设置</h2>
-			<p class="xmux-modal-subtitle">仅 XHTTP 传输协议生效。除「保活心跳间隔」外，其余参数都支持整数或范围写法（如 16-32，客户端每次从中随机取值）。</p>
+			<p class="xmux-modal-subtitle">仅 XHTTP 传输协议生效。除「保活心跳间隔」外，其余参数都支持整数或范围写法（如 16-32，客户端每次随机取值）。</p>
 			<div class="xmux-intro">
 				⚠️ <strong>6 项全部为 0</strong> 时，Xray 会套用内置默认值（并发 16-32、请求 600-900、可复用 1800-3000 秒，均随机）；一旦填写其中<strong>任意一项</strong>，其余项的 0 就表示「不限制」。<br>
 				范围写法形如 <strong>16-32</strong>，表示客户端每次从区间内随机取一个整数。<br>
@@ -17844,25 +17842,6 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
 					</div>
 				</div>
 
-
-					<div class="auth-help-section-title" style="margin-top: 20px;">⚙️ 匹配规则</div>
-					<div class="auth-help-card">
-						<span class="card-tag tag-auto">匹配方式</span>
-						<h4>🏷️ 节点备注匹配</h4>
-						<p>系统会按顺序遍历填入的 <b>PROXYIP#标签</b> 列表，检查节点备注（如 <code>HK-01#HK</code>、<code>东京#JP</code>、<code>洛杉矶-1#US</code> 等）中是否包含对应的标签（如 <b>#HK</b>、<b>#JP</b>、<b>#US</b>）。包含则将该节点的 PROXYIP 替换为对应值。</p>
-						<p style="margin-top: 10px;"><b>多关键词</b>：<code>#</code> 后用 <b>竖线</b> <code>|</code> 分隔多个关键词，<b>任一关键词</b> 出现在节点备注中即命中。例如 <code>proxyip.host#HK|香港|HK01</code> 对节点备注 <code>HK-01</code>、<code>香港01</code>、<code>HK01-test</code> 均会匹配。</p>
-					</div>
-
-					<div class="auth-help-card">
-						<span class="card-tag tag-manual">优先级</span>
-						<h4>📌 优先级说明</h4>
-						<p>个性化 PROXYIP 仅在 <b>启用个性化PROXYIP</b> 勾选时生效。<b>未启用</b> 时，即使填写了内容，也不会修改任何节点的 PROXYIP。</p>
-					</div>
-
-					<div class="auth-help-tip">
-						<strong>⚠️ 重要提示：</strong>个性化 PROXYIP 与 全局 PROXYIP 共存时，节点将优先使用个性化 PROXYIP；填写后请确保 节点备注 中存在对应标签，否则不会匹配。
-					</div>
-				</div>
 			</div>
 			<button type="button" class="btn btn-primary btn-close-modal" onclick="closeAuthTokenHelpModal()"
 				style="margin-top: 20px;">关闭</button>
@@ -20693,26 +20672,24 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
 			hideTransportGrpcTooltip();
 		}
 
-
 		// ===== 连接复用（XHTTP xmux）=====
 		const XMUX_FIELDS = ['maxConnections', 'maxConcurrency', 'cMaxReuseTimes', 'hMaxRequestTimes', 'hMaxReusableSecs', 'hKeepAlivePeriod'];
 		const XMUX_DEFAULTS = { maxConnections: 0, maxConcurrency: 0, cMaxReuseTimes: 0, hMaxRequestTimes: 0, hMaxReusableSecs: 0, hKeepAlivePeriod: 0 };
 
-		// 取当前配置里的连接复用对象；后端无此字段时返回 null
 		function getXmuxConfig() {
 			if (!currentConfig || currentConfig['连接复用'] === undefined) return null;
 			if (!currentConfig['连接复用'].xmux) currentConfig['连接复用'].xmux = Object.assign({}, XMUX_DEFAULTS);
 			return currentConfig['连接复用'];
 		}
 
-		// 解析单个字段：空或 0 → "0"；整数 → "16"；范围 → "16-32"（保留字符串，后端原样传递）
+		// 空→0；纯数字→number；范围→"a-b" 字符串（后端原样透传给 Xray）
 		function parseXmuxFieldValue(raw, key) {
 			const v = String(raw === undefined || raw === null ? '' : raw).trim();
 			if (v === '') return { ok: true, value: 0 };
 			if (/^\d+$/.test(v)) {
 				const n = Number(v);
 				if (key === 'hKeepAlivePeriod' && n > 3600) return { ok: false, message: '保活间隔需在 0-3600 秒之间' };
-				return { ok: true, value: n };   // 数字类型，与后端默认值一致
+				return { ok: true, value: n };
 			}
 			if (key === 'hKeepAlivePeriod') return { ok: false, message: '保活间隔仅支持单个整数' };
 			const m = /^(\d+)-(\d+)$/.exec(v);
@@ -20750,17 +20727,26 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
 			}
 		}
 
+		function updateXmuxVisibility() {
+			const row = document.getElementById('xmuxRow');
+			const transportSelect = document.getElementById('transport');
+			if (!row || !transportSelect) return;
+			const hasField = !!(currentConfig && currentConfig['连接复用'] !== undefined);
+			const isXhttp = String(transportSelect.value || '').toLowerCase() === 'xhttp';
+			row.style.display = hasField && isXhttp ? '' : 'none';
+		}
+
 		function fillXmuxFormFromConfig() {
 			const cfg = getXmuxConfig();
 			if (!cfg) return;
 			const cb = document.getElementById('xmuxEnabled');
 			if (cb) cb.checked = !!cfg['启用'];
-			updateXmuxVisibility();
 			XMUX_FIELDS.forEach(function (key) {
 				const el = document.getElementById('xmux_' + key);
 				if (el) el.value = cfg.xmux[key] === undefined || cfg.xmux[key] === null || cfg.xmux[key] === '' ? '0' : String(cfg.xmux[key]);
 				setXmuxFieldError(key, '');
 			});
+			updateXmuxVisibility();
 		}
 
 		function handleXmuxEnabledChange() {
@@ -20772,20 +20758,15 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
 		}
 
 		function handleXmuxFieldInput(key) {
-			const cfg = getXmuxConfig();
-			if (!cfg) return;
 			const el = document.getElementById('xmux_' + key);
-			if (!el) return;
-			const parsed = parseXmuxFieldValue(el.value, key);
-			if (!parsed.ok) { setXmuxFieldError(key, ''); return; }
-			setXmuxFieldError(key, '');
+			if (!el || !getXmuxConfig()) return;
+			if (parseXmuxFieldValue(el.value, key).ok) setXmuxFieldError(key, '');
 		}
 
 		function handleXmuxFieldCommit(key) {
 			const cfg = getXmuxConfig();
-			if (!cfg) return;
 			const el = document.getElementById('xmux_' + key);
-			if (!el) return;
+			if (!cfg || !el) return;
 			const parsed = parseXmuxFieldValue(el.value, key);
 			if (!parsed.ok) { setXmuxFieldError(key, parsed.message); return; }
 			setXmuxFieldError(key, '');
@@ -20822,16 +20803,6 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
 			if (!modal) return;
 			modal.classList.remove('show');
 			fillXmuxFormFromConfig();
-		}
-
-		// 按传输协议显隐：仅 xhttp 时显示
-		function updateXmuxVisibility() {
-			const row = document.getElementById('xmuxRow');
-			const transportSelect = document.getElementById('transport');
-			if (!row || !transportSelect) return;
-			const hasField = !!(currentConfig && currentConfig['连接复用'] !== undefined);
-			const isXhttp = String(transportSelect.value || '').toLowerCase() === 'xhttp';
-			row.style.display = hasField && isXhttp ? '' : 'none';
 		}
 
 		function handleTransportChange() {
@@ -26195,31 +26166,26 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
 		}
 
 		function showAuthTokenHelpModal(mode) {
-			const displayMode = mode === 'uuid' ? 'uuid' : mode === 'customIPs' ? 'customIPs' : mode === 'proxyIPCustom' ? 'proxyIPCustom' : 'token';
+			const displayMode = mode === 'uuid' ? 'uuid' : mode === 'customIPs' ? 'customIPs' : 'token';
 			const modal = document.getElementById('authTokenHelpModal');
 			const tokenSection = document.getElementById('authTokenTokenSection');
 			const uuidSection = document.getElementById('authTokenUUIDSection');
 			const customIPsSection = document.getElementById('authTokenCustomIPsSection');
-			const proxyIPCustomSection = document.getElementById('authTokenProxyIPCustomSection');
 			const titleEl = document.getElementById('authTokenHelpTitle');
 
-			if (!modal || !tokenSection || !uuidSection || !customIPsSection || !proxyIPCustomSection) return;
+			if (!modal || !tokenSection || !uuidSection || !customIPsSection) return;
 
 			modal.dataset.mode = displayMode;
 
 			tokenSection.style.display = displayMode === 'token' ? 'block' : 'none';
 			uuidSection.style.display = displayMode === 'uuid' ? 'block' : 'none';
 			customIPsSection.style.display = displayMode === 'customIPs' ? 'block' : 'none';
-			proxyIPCustomSection.style.display = displayMode === 'proxyIPCustom' ? 'block' : 'none';
 
 			if (titleEl) {
 				if (displayMode === 'uuid') {
 					titleEl.textContent = '🔑 如何修改 UUID？';
 				} else if (displayMode === 'customIPs') {
-					titleEl.textContent = '📍 自定义优选 填写说明';
-				} else if (displayMode === 'proxyIPCustom') {
-					titleEl.textContent = '🎯 个性化PROXYIP 填写说明';
-				} else {
+					titleEl.textContent = '📍 自定义优选 填写说明';				} else {
 					titleEl.textContent = '🎫 如何修改订阅 TOKEN？';
 				}
 			}

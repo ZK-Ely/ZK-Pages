@@ -10655,6 +10655,31 @@
 				grid-template-columns: repeat(2, minmax(0, 1fr));
 			}
 		}
+
+		/* ===== 连接复用（XHTTP xmux）===== */
+		.xmux-row-label { white-space: nowrap; }
+		.xmux-row-body { align-items: center; display: flex; gap: 20px; justify-content: space-between; min-width: 0; }
+		.xmux-row-body .checkbox-group { align-items: center; display: flex; gap: 10px; margin: 0; white-space: nowrap; }
+		.xmux-detail-btn { padding: 6px 14px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border-color, #d0d7de); background: var(--bg-secondary, #f6f8fa); color: var(--text-primary, #24292f); cursor: pointer; transition: all .2s ease; }
+		.xmux-detail-btn:hover { background: var(--bg-hover, #eaeef2); border-color: var(--accent-color, #0969da); }
+		.xmux-modal { max-width: 720px; }
+		.xmux-modal-subtitle { color: var(--text-secondary, #57606a); font-size: 13px; line-height: 1.6; margin: 8px 0 16px; }
+		.xmux-intro { background: var(--bg-secondary, #f6f8fa); border-left: 3px solid var(--accent-color, #0969da); border-radius: 6px; color: var(--text-secondary, #57606a); font-size: 12.5px; line-height: 1.7; margin-bottom: 20px; padding: 12px 14px; }
+		.xmux-intro strong { color: var(--text-primary, #24292f); }
+		.xmux-intro a { color: var(--accent-color, #0969da); text-decoration: none; }
+		.xmux-intro a:hover { text-decoration: underline; }
+		.xmux-grid { display: grid; gap: 18px; grid-template-columns: 1fr 1fr; }
+		.xmux-field { display: flex; flex-direction: column; gap: 6px; }
+		.xmux-field-head { align-items: baseline; display: flex; gap: 8px; justify-content: space-between; }
+		.xmux-field-name { font-size: 13.5px; font-weight: 600; color: var(--text-primary, #24292f); }
+		.xmux-field-key { color: var(--text-secondary, #57606a); font-family: ui-monospace, SFMono-Regular, monospace; font-size: 11px; opacity: .75; }
+		.xmux-field input { background: var(--bg-input, #fff); border: 1px solid var(--border-color, #d0d7de); border-radius: 6px; color: var(--text-primary, #24292f); font-size: 13px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
+		.xmux-field input:focus { border-color: var(--accent-color, #0969da); outline: none; box-shadow: 0 0 0 3px rgba(9,105,218,.12); }
+		.xmux-field input.xmux-invalid { border-color: #d1242f; }
+		.xmux-field-desc { color: var(--text-secondary, #57606a); font-size: 11.5px; line-height: 1.55; margin: 0; }
+		.xmux-field-error { color: #d1242f; font-size: 11.5px; margin: 0; min-height: 14px; }
+		.xmux-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+		@media (max-width: 640px) { .xmux-grid { grid-template-columns: 1fr; } }
 	</style>
 
 </head>
@@ -11060,6 +11085,21 @@
 							</select>
 						</div>
 
+						<div class="form-group xmux-row" id="xmuxRow" style="display: none;">
+							<label class="xmux-row-label" for="xmuxEnabled">连接复用</label>
+							<div class="xmux-row-body">
+								<div class="checkbox-group">
+									<input type="checkbox" id="xmuxEnabled"
+										title="XHTTP 传输协议下复用 HTTP 连接，减少连接建立与握手开销"
+										onchange="handleXmuxEnabledChange()">
+									<label for="xmuxEnabled" class="checkbox-label" title="XHTTP 传输协议下复用 HTTP 连接，减少连接建立与握手开销">启用</label>
+								</div>
+								<div class="xmux-controls">
+									<button type="button" class="btn btn-outline xmux-detail-btn" id="xmuxDetailBtn" onclick="openXmuxModal()">⚙️ 参数配置</button>
+								</div>
+							</div>
+						</div>
+
 						<div class="form-group mobile-half" id="grpcModeGroup" style="display: none;">
 							<label for="grpcMode">gRPC模式</label>
 							<select id="grpcMode" title="gRPC模式" onchange="markModified('config')">
@@ -11313,40 +11353,8 @@
 									<label for="autoProxy" class="checkbox-label"
 										title="启用自动获取: 使用默认内置的PROXYIP">启用自动获取</label>
 								</div>
-								<div class="checkbox-group">
-									<input type="checkbox" id="proxyIPCustomEnabled"
-										title="启用个性化PROXYIP: 根据节点备注中的#标签匹配，为节点赋予对应的PROXYIP"
-										onchange="toggleProxyIPCustom(); markModified('proxy')">
-									<label for="proxyIPCustomEnabled" class="checkbox-label"
-										title="启用个性化PROXYIP: 根据节点备注中的#标签匹配，为节点赋予对应的PROXYIP">启用个性化PROXYIP</label>
-								</div>
 							</div>
 						</div>
-						<div id="proxyIPCustomSection" class="form-group hidden-section">
-							<div class="label-with-hint">
-								<label for="proxyIPCustomList">个性化PROXYIP</label>
-								<button type="button" class="inline-hint-btn" title="查看个性化PROXYIP填写说明"
-									onclick="showProxyIPCustomHelp()" aria-label="查看个性化PROXYIP填写说明">!</button>
-							</div>
-							<div class="line-editor line-editor-wrap" id="proxyIPCustomEditor">
-								<div class="gutter" aria-hidden="true">
-									<pre>1</pre>
-								</div>
-								<div class="editor-area">
-									<div class="line-shades" aria-hidden="true">
-										<div class="shade-line"></div>
-									</div>
-									<textarea id="proxyIPCustomList" title="个性化PROXYIP地址"
-										wrap="soft"
-										autocomplete="off"
-										spellcheck="false"
-										data-lpignore="true"
-										data-1p-ignore="true"
-										data-form-type="other"
-										placeholder="proxyip1.cmliussss.net#HK|香港|HK01&#10;proxyip2.cmliussss.net#JP|东京&#10;proxyip3.cmliussss.net:443#US|洛杉矶&#10;proxyip4.cmliussss.net#SG,proxyip5.cmliussss.net#KR"
-										onchange="markModified('proxy')"></textarea>
-								</div>
-							</div>
 						</div>
 					</div>
 
@@ -17658,6 +17666,87 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
 	</div>
 
 	<!-- 订阅鉴权与 UUID 说明弹窗 -->
+
+	<!-- 连接复用（XHTTP xmux 参数）详细设置弹窗 -->
+	<div class="modal-overlay" id="xmuxModal" onclick="closeXmuxModal(event)">
+		<div class="modal xmux-modal" onclick="event.stopPropagation()">
+			<button type="button" class="modal-close" onclick="closeXmuxModal()">×</button>
+			<h2 class="subapi-modal-title">🔗 连接复用详细设置</h2>
+			<p class="xmux-modal-subtitle">仅 XHTTP 传输协议生效。除「保活心跳间隔」外，其余参数都支持整数或范围写法（如 16-32，客户端每次从中随机取值）。</p>
+			<div class="xmux-intro">
+				⚠️ <strong>6 项全部为 0</strong> 时，Xray 会套用内置默认值（并发 16-32、请求 600-900、可复用 1800-3000 秒，均随机）；一旦填写其中<strong>任意一项</strong>，其余项的 0 就表示「不限制」。<br>
+				范围写法形如 <strong>16-32</strong>，表示客户端每次从区间内随机取一个整数。<br>
+				官方文档：<a href="https://xtls.github.io/config/transports/xhttp.html" target="_blank" rel="noopener">XHTTP 传输配置</a> · <a href="https://github.com/XTLS/Xray-core/discussions/4113" target="_blank" rel="noopener">XMUX 参数说明</a>
+			</div>
+			<div class="xmux-grid">
+				<div class="xmux-field">
+					<div class="xmux-field-head">
+						<span class="xmux-field-name">最大连接数</span>
+						<span class="xmux-field-key">maxConnections</span>
+					</div>
+					<input type="text" id="xmux_maxConnections" placeholder="0 或 2-4" autocomplete="off" spellcheck="false"
+						oninput="handleXmuxFieldInput('maxConnections')" onchange="handleXmuxFieldCommit('maxConnections')">
+					<p class="xmux-field-desc">客户端最多同时维持的 HTTP 连接条数；0 表示不限制。与「最大并发数」互斥。</p>
+					<p class="xmux-field-error" id="xmuxErr_maxConnections"></p>
+				</div>
+				<div class="xmux-field">
+					<div class="xmux-field-head">
+						<span class="xmux-field-name">最大并发数</span>
+						<span class="xmux-field-key">maxConcurrency</span>
+					</div>
+					<input type="text" id="xmux_maxConcurrency" placeholder="0 或 16-32" autocomplete="off" spellcheck="false"
+						oninput="handleXmuxFieldInput('maxConcurrency')" onchange="handleXmuxFieldCommit('maxConcurrency')">
+					<p class="xmux-field-desc">单条 HTTP 连接上可同时承载的代理请求数；0 表示不限制。与「最大连接数」互斥。</p>
+					<p class="xmux-field-error" id="xmuxErr_maxConcurrency"></p>
+				</div>
+				<div class="xmux-field">
+					<div class="xmux-field-head">
+						<span class="xmux-field-name">连接最大复用次数</span>
+						<span class="xmux-field-key">cMaxReuseTimes</span>
+					</div>
+					<input type="text" id="xmux_cMaxReuseTimes" placeholder="0 或 10-20" autocomplete="off" spellcheck="false"
+						oninput="handleXmuxFieldInput('cMaxReuseTimes')" onchange="handleXmuxFieldCommit('cMaxReuseTimes')">
+					<p class="xmux-field-desc">单条连接被重复使用的次数上限；0 表示不限制。</p>
+					<p class="xmux-field-error" id="xmuxErr_cMaxReuseTimes"></p>
+				</div>
+				<div class="xmux-field">
+					<div class="xmux-field-head">
+						<span class="xmux-field-name">单连接最大请求数</span>
+						<span class="xmux-field-key">hMaxRequestTimes</span>
+					</div>
+					<input type="text" id="xmux_hMaxRequestTimes" placeholder="0 或 600-900" autocomplete="off" spellcheck="false"
+						oninput="handleXmuxFieldInput('hMaxRequestTimes')" onchange="handleXmuxFieldCommit('hMaxRequestTimes')">
+					<p class="xmux-field-desc">单条连接累计处理的请求总数上限；0 表示不限制。</p>
+					<p class="xmux-field-error" id="xmuxErr_hMaxRequestTimes"></p>
+				</div>
+				<div class="xmux-field">
+					<div class="xmux-field-head">
+						<span class="xmux-field-name">连接最长可复用时间</span>
+						<span class="xmux-field-key">hMaxReusableSecs</span>
+					</div>
+					<input type="text" id="xmux_hMaxReusableSecs" placeholder="0 或 1800-3000" autocomplete="off" spellcheck="false"
+						oninput="handleXmuxFieldInput('hMaxReusableSecs')" onchange="handleXmuxFieldCommit('hMaxReusableSecs')">
+					<p class="xmux-field-desc">单条连接可复用的时长上限（秒）；0 表示不限制。</p>
+					<p class="xmux-field-error" id="xmuxErr_hMaxReusableSecs"></p>
+				</div>
+				<div class="xmux-field">
+					<div class="xmux-field-head">
+						<span class="xmux-field-name">保活心跳间隔</span>
+						<span class="xmux-field-key">hKeepAlivePeriod</span>
+					</div>
+					<input type="text" id="xmux_hKeepAlivePeriod" placeholder="0 或 45" autocomplete="off" spellcheck="false"
+						oninput="handleXmuxFieldInput('hKeepAlivePeriod')" onchange="handleXmuxFieldCommit('hKeepAlivePeriod')">
+					<p class="xmux-field-desc">仅在「最大连接数」与「最大并发数」均不为 0 时生效（秒）；0 表示关闭。</p>
+					<p class="xmux-field-error" id="xmuxErr_hKeepAlivePeriod"></p>
+				</div>
+			</div>
+			<div class="xmux-modal-actions">
+				<button type="button" class="btn btn-outline" onclick="resetXmuxFields()">恢复默认</button>
+				<button type="button" class="btn btn-primary" onclick="closeXmuxModal()">完成</button>
+			</div>
+		</div>
+	</div>
+
 	<div class="modal-overlay" id="authTokenHelpModal" onclick="closeAuthTokenHelpModal(event)">
 		<div class="modal auth-help-modal" onclick="event.stopPropagation()">
 			<button type="button" class="modal-close" onclick="closeAuthTokenHelpModal()">×</button>
@@ -17755,36 +17844,6 @@ html.dark-mode #proxy-diag-panel{background:#141a22;border-color:#2a3441}
 					</div>
 				</div>
 
-				<!-- 个性化PROXYIP 填写说明 -->
-				<div id="authTokenProxyIPCustomSection" style="display: none;">
-					<div class="auth-help-summary auth-help-summary-warning">
-							<strong>提示：</strong>一行写一条，格式为 <b>PROXYIP#标签</b>。PROXYIP 端口不写默认 <b>443</b>。<b>#</b> 后用 <code>|</code> 分隔多个关键词，任一关键词出现在节点备注中即匹配。
-					</div>
-
-					<div class="auth-help-section-title" style="margin-top: 20px;">📚 个性化PROXYIP 案例</div>
-					<div class="auth-example-list">
-						<div class="auth-example-item">
-							<h4>单关键词格式</h4>
-							<pre>proxyip1.cmliussss.net#HK
-proxyip2.cmliussss.net#JP
-proxyip3.cmliussss.net:8443#US
-[2606:4700::]:2053#IPv6</pre>
-						</div>
-						<div class="auth-example-item">
-							<h4>多关键词格式（竖线分隔，任一命中即匹配）</h4>
-							<pre>proxyip1.cmliussss.net#HK|香港|HK01
-proxyip2.cmliussss.net#JP|东京
-proxyip3.cmliussss.net:443#US|洛杉矶</pre>
-						</div>
-						<div class="auth-example-item">
-							<h4>多条目格式（换行 / 逗号分隔）</h4>
-							<pre>proxyip1.cmliussss.net#HK
-proxyip2.cmliussss.net#JP
-proxyip3.cmliussss.net#US
-或（同一行用逗号拼接）：
-proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</pre>
-						</div>
-					</div>
 
 					<div class="auth-help-section-title" style="margin-top: 20px;">⚙️ 匹配规则</div>
 					<div class="auth-help-card">
@@ -19008,16 +19067,6 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 				populateProxyProtocolFromConfig(getSelectedProxyProtocol());
 			}
 
-			const proxyIPCustomListEl = document.getElementById('proxyIPCustomList');
-			if (proxyIPCustomListEl) {
-				proxyIPCustomListEl.value = currentConfig.反代?.PROXYIP_CUSTOM || '';
-				if (proxyIPCustomListEl._refreshLineEditor) requestAnimationFrame(() => proxyIPCustomListEl._refreshLineEditor());
-			}
-			const proxyIPCustomEnabledEl = document.getElementById('proxyIPCustomEnabled');
-			if (proxyIPCustomEnabledEl) {
-				proxyIPCustomEnabledEl.checked = !!currentConfig.反代?.PROXYIP_CUSTOM_ENABLED;
-			}
-			toggleProxyIPCustom();
 
 			updateProxyMode(false, false);
 		}
@@ -20244,6 +20293,7 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			if (currentConfig['启用0RTT'] !== undefined) {
 				enable0RTTGroup.style.setProperty('display', 'flex', 'important');
 				enable0RTTCheckbox.checked = currentConfig['启用0RTT'] || false;
+			fillXmuxFormFromConfig();
 			} else {
 				enable0RTTGroup.style.setProperty('display', 'none', 'important');
 			}
@@ -20643,9 +20693,151 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			hideTransportGrpcTooltip();
 		}
 
+
+		// ===== 连接复用（XHTTP xmux）=====
+		const XMUX_FIELDS = ['maxConnections', 'maxConcurrency', 'cMaxReuseTimes', 'hMaxRequestTimes', 'hMaxReusableSecs', 'hKeepAlivePeriod'];
+		const XMUX_DEFAULTS = { maxConnections: 0, maxConcurrency: 0, cMaxReuseTimes: 0, hMaxRequestTimes: 0, hMaxReusableSecs: 0, hKeepAlivePeriod: 0 };
+
+		// 取当前配置里的连接复用对象；后端无此字段时返回 null
+		function getXmuxConfig() {
+			if (!currentConfig || currentConfig['连接复用'] === undefined) return null;
+			if (!currentConfig['连接复用'].xmux) currentConfig['连接复用'].xmux = Object.assign({}, XMUX_DEFAULTS);
+			return currentConfig['连接复用'];
+		}
+
+		// 解析单个字段：空或 0 → "0"；整数 → "16"；范围 → "16-32"（保留字符串，后端原样传递）
+		function parseXmuxFieldValue(raw, key) {
+			const v = String(raw === undefined || raw === null ? '' : raw).trim();
+			if (v === '') return { ok: true, value: 0 };
+			if (/^\d+$/.test(v)) {
+				const n = Number(v);
+				if (key === 'hKeepAlivePeriod' && n > 3600) return { ok: false, message: '保活间隔需在 0-3600 秒之间' };
+				return { ok: true, value: n };   // 数字类型，与后端默认值一致
+			}
+			if (key === 'hKeepAlivePeriod') return { ok: false, message: '保活间隔仅支持单个整数' };
+			const m = /^(\d+)-(\d+)$/.exec(v);
+			if (!m) return { ok: false, message: '格式应为整数或范围（如 16-32）' };
+			const a = Number(m[1]), b = Number(m[2]);
+			if (a <= 0 || b <= 0) return { ok: false, message: '范围两端都必须大于 0' };
+			if (a > b) return { ok: false, message: '范围起始值不能大于结束值' };
+			return { ok: true, value: v };
+		}
+
+		function isXmuxValueSet(v) {
+			return v !== 0 && v !== '0' && v !== '' && v !== null && v !== undefined;
+		}
+
+		function setXmuxFieldError(key, message) {
+			const errEl = document.getElementById('xmuxErr_' + key);
+			const inputEl = document.getElementById('xmux_' + key);
+			if (errEl) errEl.textContent = message || '';
+			if (inputEl) inputEl.classList.toggle('xmux-invalid', !!message);
+		}
+
+		// 最大连接数 与 最大并发数 互斥
+		function enforceXmuxMutualExclusion(key) {
+			const cfg = getXmuxConfig();
+			if (!cfg) return;
+			const other = key === 'maxConnections' ? 'maxConcurrency' : (key === 'maxConcurrency' ? 'maxConnections' : null);
+			if (!other) return;
+			if (!isXmuxValueSet(cfg.xmux[key])) return;
+			if (isXmuxValueSet(cfg.xmux[other])) {
+				cfg.xmux[other] = 0;
+				const el = document.getElementById('xmux_' + other);
+				if (el) el.value = '0';
+				setXmuxFieldError(other, '');
+				showToast('「最大连接数」与「最大并发数」互斥，已将另一项重置为 0', 'info');
+			}
+		}
+
+		function fillXmuxFormFromConfig() {
+			const cfg = getXmuxConfig();
+			if (!cfg) return;
+			const cb = document.getElementById('xmuxEnabled');
+			if (cb) cb.checked = !!cfg['启用'];
+			updateXmuxVisibility();
+			XMUX_FIELDS.forEach(function (key) {
+				const el = document.getElementById('xmux_' + key);
+				if (el) el.value = cfg.xmux[key] === undefined || cfg.xmux[key] === null || cfg.xmux[key] === '' ? '0' : String(cfg.xmux[key]);
+				setXmuxFieldError(key, '');
+			});
+		}
+
+		function handleXmuxEnabledChange() {
+			const cb = document.getElementById('xmuxEnabled');
+			const cfg = getXmuxConfig();
+			if (!cb || !cfg) return;
+			cfg['启用'] = !!cb.checked;
+			markModified('config');
+		}
+
+		function handleXmuxFieldInput(key) {
+			const cfg = getXmuxConfig();
+			if (!cfg) return;
+			const el = document.getElementById('xmux_' + key);
+			if (!el) return;
+			const parsed = parseXmuxFieldValue(el.value, key);
+			if (!parsed.ok) { setXmuxFieldError(key, ''); return; }
+			setXmuxFieldError(key, '');
+		}
+
+		function handleXmuxFieldCommit(key) {
+			const cfg = getXmuxConfig();
+			if (!cfg) return;
+			const el = document.getElementById('xmux_' + key);
+			if (!el) return;
+			const parsed = parseXmuxFieldValue(el.value, key);
+			if (!parsed.ok) { setXmuxFieldError(key, parsed.message); return; }
+			setXmuxFieldError(key, '');
+			el.value = String(parsed.value);
+			cfg.xmux[key] = parsed.value;
+			if (isXmuxValueSet(parsed.value)) enforceXmuxMutualExclusion(key);
+			markModified('config');
+		}
+
+		function resetXmuxFields() {
+			const cfg = getXmuxConfig();
+			if (!cfg) return;
+			XMUX_FIELDS.forEach(function (key) {
+				const el = document.getElementById('xmux_' + key);
+				if (el) el.value = '0';
+				cfg.xmux[key] = 0;
+				setXmuxFieldError(key, '');
+			});
+			markModified('config');
+			showToast('已恢复默认（全部 0，由 Xray 使用内置随机值）', 'success');
+		}
+
+		function openXmuxModal() {
+			const modal = document.getElementById('xmuxModal');
+			if (!modal) return;
+			if (!getXmuxConfig()) { showToast('当前后端版本不支持连接复用设置', 'error'); return; }
+			fillXmuxFormFromConfig();
+			modal.classList.add('show');
+		}
+
+		function closeXmuxModal(event) {
+			if (event && event.target && event.target.id !== 'xmuxModal') return;
+			const modal = document.getElementById('xmuxModal');
+			if (!modal) return;
+			modal.classList.remove('show');
+			fillXmuxFormFromConfig();
+		}
+
+		// 按传输协议显隐：仅 xhttp 时显示
+		function updateXmuxVisibility() {
+			const row = document.getElementById('xmuxRow');
+			const transportSelect = document.getElementById('transport');
+			if (!row || !transportSelect) return;
+			const hasField = !!(currentConfig && currentConfig['连接复用'] !== undefined);
+			const isXhttp = String(transportSelect.value || '').toLowerCase() === 'xhttp';
+			row.style.display = hasField && isXhttp ? '' : 'none';
+		}
+
 		function handleTransportChange() {
 			updateGrpcModeVisibility();
 			updateTransportGrpcTooltipVisibility(true);
+			updateXmuxVisibility();
 			const protocolSelect = document.getElementById('protocol');
 			updateProtocolOptionAvailability(protocolSelect ? protocolSelect.value : '');
 			markModified('config');
@@ -21317,33 +21509,7 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			markModified('proxy');
 		}
 
-		function toggleProxyIPCustom() {
-			const enabledEl = document.getElementById('proxyIPCustomEnabled');
-			const sectionEl = document.getElementById('proxyIPCustomSection');
-			const listEl = document.getElementById('proxyIPCustomList');
-			const editorEl = document.getElementById('proxyIPCustomEditor');
-			if (!enabledEl || !sectionEl || !listEl || !editorEl) return;
-			const enabled = enabledEl.checked;
-			// 完全隐藏外层 section（带 !important 兜底，避免被更高优先级规则覆盖）
-			if (enabled) {
-				sectionEl.style.removeProperty('display');
-				sectionEl.classList.remove('hidden-section');
-			} else {
-				sectionEl.classList.add('hidden-section');
-				sectionEl.style.setProperty('display', 'none', 'important');
-			}
-			listEl.disabled = !enabled;
-			editorEl.classList.toggle('line-editor-disabled', !enabled);
-			if (enabled) {
-				requestAnimationFrame(() => {
-					if (typeof listEl._refreshLineEditor === 'function') listEl._refreshLineEditor();
-				});
-			}
-		}
 
-		function showProxyIPCustomHelp() {
-			showAuthTokenHelpModal('proxyIPCustom');
-		}
 
 		function clearHeightTransition(content) {
 			if (content && content._transitionHandler) {
@@ -22060,13 +22226,9 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 
 			const existingReverseProxyConfig = currentConfig.反代 || {};
 			const existingSocks5Config = existingReverseProxyConfig.SOCKS5 || {};
-			const proxyIPCustomEnabledEl = document.getElementById('proxyIPCustomEnabled');
-			const proxyIPCustomListEl = document.getElementById('proxyIPCustomList');
 			currentConfig.反代 = {
 				...existingReverseProxyConfig,
 				PROXYIP: proxyIP,
-				PROXYIP_CUSTOM_ENABLED: proxyIPCustomEnabledEl ? !!proxyIPCustomEnabledEl.checked : false,
-				PROXYIP_CUSTOM: proxyIPCustomListEl ? (proxyIPCustomListEl.value || '') : (existingReverseProxyConfig.PROXYIP_CUSTOM || ''),
 				SOCKS5: {
 					...existingSocks5Config,
 					启用: socksEnabled,
@@ -27648,7 +27810,6 @@ proxyip1.cmliussss.net#HK,proxyip2.cmliussss.net#JP,proxyip3.cmliussss.net#US</p
 			loadConfig();
 			initUserMode();
 			initLineEditor('customIPs');
-			initLineEditor('proxyIPCustomList');
 			initNodeUUIDEasterEgg();
 			initVersionCopyEasterEgg();
 			// 按协议注册表生成公开库的协议胶囊（新增协议后无需改 HTML）
